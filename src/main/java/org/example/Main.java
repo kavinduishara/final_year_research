@@ -3,6 +3,7 @@ package org.example;
 import org.example.calcite.BestPlanFinder;
 import org.example.calcite.CalciteContext;
 import org.example.calcite.CalcitePlannerFactory;
+import org.example.calcite.SchemaPrinter;
 import org.example.plan.CutPointCollector;
 import org.example.rl.Action;
 import org.example.rl.DummyRandomPolicy;
@@ -18,6 +19,7 @@ import org.example.exec.PostgresExecutor;
 
 
 import java.util.List;
+import java.util.Properties;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -31,8 +33,9 @@ public class Main {
             GROUP BY c.region
             """;
 
-        CalciteContext ctx = CalcitePlannerFactory.createWithInMemorySchema();
-        RelNode bestPlan = BestPlanFinder.sqlToRel(sql, ctx);
+        CalciteContext ctx = CalcitePlannerFactory.createFromMetaDb();
+        RelNode bestPlan = BestPlanFinder.sqlToBestRel(sql, ctx);
+        SchemaPrinter.printSchema(ctx.defaultSchema());
 
         System.out.println("===== ORIGINAL PLAN (RelNode) =====");
         System.out.println(RelOptUtil.toString(bestPlan));
