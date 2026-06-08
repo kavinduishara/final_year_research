@@ -46,7 +46,7 @@ public class Main {
             return;
         }
 
-        Policy policy = new DummyRandomPolicy();
+        Policy policy = new BaselinePolicy();
         Action action = policy.choose(cutPoints);
 
         System.out.println("===== DUMMY RL ACTION =====");
