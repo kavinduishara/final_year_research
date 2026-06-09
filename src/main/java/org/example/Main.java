@@ -1,13 +1,19 @@
 package org.example;
 
+import org.example.benchmark.BenchmarkResult;
+import org.example.benchmark.BenchmarkRunner;
 import org.example.calcite.BestPlanFinder;
 import org.example.calcite.CalciteContext;
 import org.example.calcite.CalcitePlannerFactory;
 import org.example.calcite.SchemaPrinter;
+import org.example.plan.CutCandidate;
 import org.example.plan.CutPointCollector;
-import org.example.rl.Action;
-import org.example.rl.DummyRandomPolicy;
-import org.example.rl.Policy;
+import org.example.plan.PlanStatisticsCollector;
+import org.example.qos.QoSMetric;
+import org.example.qos.QoSMetricCalculator;
+import org.example.qos.RewardCalculator;
+import org.example.qos.TransferCostEstimator;
+import org.example.rl.*;
 import org.example.split.SingleCutSplitter;
 import org.example.split.SplitResult;
 import org.apache.calcite.plan.RelOptUtil;
@@ -41,16 +47,130 @@ public class Main {
         System.out.println(RelOptUtil.toString(bestPlan));
 
         List<RelNode> cutPoints = CutPointCollector.collectJoinCuts(bestPlan);
+        List<CutCandidate> candidates =
+                PlanStatisticsCollector.collect(
+                        bestPlan,
+                        cutPoints
+                );
+
+        System.out.println("\n===== CUT CANDIDATES =====");
+        QTable qTable =
+                new QTable();
+
+        for (int episode = 1;
+             episode <= 100;
+             episode++) {
+
+            for (CutCandidate c : candidates) {
+
+                State state =
+                        StateBuilder.from(c);
+
+                String key =
+                        state.rowBucket()
+                                + "_"
+                                + state.depthBucket()
+                                + "_"
+                                + state.costBucket()
+                                + "_"
+                                + c.nodeId();
+
+
+                double transferCost =
+                        TransferCostEstimator
+                                .estimate(
+                                        c.estimatedRows()
+                                );
+
+                double reward =
+                        RewardCalculator.reward(
+                                transferCost,
+                                c.estimatedCost()
+                        );
+
+
+                qTable.update(
+                        key,
+                        reward
+                );
+            }
+        }
+        qTable.print();
+
+        for (CutCandidate c : candidates) {
+
+            State s =
+                    StateBuilder.from(c);
+
+            System.out.println(
+                    "Node="
+                            + c.nodeId()
+                            + ", rows="
+                            + c.estimatedRows()
+                            + ", depth="
+                            + c.depth()
+                            + ", cost="
+                            + c.estimatedCost()
+            );
+
+            System.out.println(
+                    "Node="
+                            + c.nodeId()
+                            + " State="
+                            + s
+            );
+        }
+
         if (cutPoints.isEmpty()) {
             System.out.println("No JOIN cut-points found. (Try a query with JOIN)");
             return;
         }
 
-        Policy policy = new BaselinePolicy();
-        Action action = policy.choose(cutPoints);
+        QLearningPolicy policy =
+                new QLearningPolicy(qTable);
 
-        System.out.println("===== DUMMY RL ACTION =====");
+        Action action =
+                policy.choose(candidates);
+
         System.out.println(action);
+        BenchmarkResult baseline =
+                BenchmarkRunner.runBaseline(
+                        candidates,
+                        cutPoints
+                );
+
+        BenchmarkResult rl =
+                BenchmarkRunner.runQLearning(
+                        candidates,
+                        action
+                );
+
+        double improvement =
+                ((baseline.averageTransferCost()
+                        - rl.averageTransferCost())
+                        /
+                        baseline.averageTransferCost())
+                        * 100.0;
+
+        System.out.println(
+                "\n===== POLICY COMPARISON ====="
+        );
+
+        System.out.println(
+                "Baseline Transfer Cost = "
+                        + baseline.averageTransferCost()
+        );
+
+        System.out.println(
+                "QLearning Transfer Cost = "
+                        + rl.averageTransferCost()
+        );
+
+        System.out.println(
+                "Improvement = "
+                        + improvement
+                        + "%"
+        );
 
         SingleCutSplitter splitter = new SingleCutSplitter();
         SplitResult split = splitter.split(bestPlan, action, ctx.rootSchema(), ctx.relBuilder());
