@@ -18,6 +18,12 @@ public class ExperimentRunner {
             CalciteContext ctx
     ) throws Exception {
 
+        System.out.println(
+                "\n===== RUNNING ACTION ====="
+        );
+
+        System.out.println(action);
+
         SingleCutSplitter splitter =
                 new SingleCutSplitter();
 

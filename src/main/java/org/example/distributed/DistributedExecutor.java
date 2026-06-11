@@ -40,7 +40,7 @@ public class DistributedExecutor {
                 transferManager.transfer(
                         worker1,
                         worker2,
-                        "INTERMEDIATE_17"
+                        sql.tempTableName()
                 );
 
         System.out.println(

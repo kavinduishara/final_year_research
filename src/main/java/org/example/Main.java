@@ -8,6 +8,7 @@ import org.example.calcite.CalcitePlannerFactory;
 import org.example.calcite.SchemaPrinter;
 import org.example.distributed.DistributedExecutor;
 import org.example.distributed.WorkerRegistry;
+import org.example.experiment.ExperimentRunner;
 import org.example.plan.CutCandidate;
 import org.example.plan.CutPointCollector;
 import org.example.plan.PlanStatisticsCollector;
@@ -265,7 +266,53 @@ public class Main {
                 WorkerRegistry.workers()
         );
 
-
+//        System.out.println(
+//                "\n===== BASELINE ACTION ====="
+//        );
+//
+//        System.out.println(
+//                baselineAction
+//        );
+//
+//        long baselineTime =
+//                ExperimentRunner.run(
+//                        bestPlan,
+//                        baselineAction,
+//                        ctx
+//                );
+//
+        long rlTime =
+                ExperimentRunner.run(
+                        bestPlan,
+                        action,
+                        ctx
+                );
+//        double runtimeImprovement =
+//                ((baselineTime - rlTime)
+//                        / (double) baselineTime)
+//                        * 100.0;
+//
+//        System.out.println(
+//                "\n===== FINAL RESEARCH RESULT ====="
+//        );
+//
+//        System.out.println(
+//                "Baseline Runtime = "
+//                        + baselineTime
+//                        + " ms"
+//        );
+//
+        System.out.println(
+                "RL Runtime = "
+                        + rlTime
+                        + " ms"
+        );
+//
+//        System.out.println(
+//                "Improvement = "
+//                        + runtimeImprovement
+//                        + "%"
+//        );
 
 
     }

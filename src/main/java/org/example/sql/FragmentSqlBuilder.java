@@ -22,6 +22,8 @@ public class FragmentSqlBuilder {
                                 split.fragment1()
                         )
                 );
+
+
         String sql1 =
                 "DROP TABLE IF EXISTS "
                         + placeholder
@@ -35,6 +37,10 @@ public class FragmentSqlBuilder {
         // Fragment 2 -> SELECT ... FROM <placeholder> ...
         String sql2 = toSql.toSql(split.fragment2()) + ";";
 
-        return new FragmentSql(sql1, sql2);
+        return new FragmentSql(
+                sql1,
+                sql2,
+                split.placeholderName()
+        );
     }
 }

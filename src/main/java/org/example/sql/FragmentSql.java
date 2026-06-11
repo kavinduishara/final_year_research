@@ -1,3 +1,7 @@
 package org.example.sql;
 
-public record FragmentSql(String sql1, String sql2) {}
+public record FragmentSql(
+        String sql1,
+        String sql2,
+        String tempTableName
+) {}
