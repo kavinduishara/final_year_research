@@ -6,6 +6,8 @@ import org.example.calcite.BestPlanFinder;
 import org.example.calcite.CalciteContext;
 import org.example.calcite.CalcitePlannerFactory;
 import org.example.calcite.SchemaPrinter;
+import org.example.distributed.DistributedExecutor;
+import org.example.distributed.WorkerRegistry;
 import org.example.plan.CutCandidate;
 import org.example.plan.CutPointCollector;
 import org.example.plan.PlanStatisticsCollector;
@@ -31,13 +33,16 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         String sql = """
-            SELECT c.region, SUM(o.totalprice)
-            FROM customer c
-            JOIN orders o ON c.custkey = o.custkey
-            JOIN lineitem l ON o.orderkey = l.orderkey
-            WHERE l.shipdate > '1996-01-01'
-            GROUP BY c.region
-            """;
+                SELECT c.mktsegment,
+                       SUM(o.totalprice)
+                FROM customer c
+                JOIN orders o
+                    ON c.custkey = o.custkey
+                JOIN lineitem l
+                    ON o.orderkey = l.orderkey
+                WHERE l.shipdate > DATE '1999-05-01'
+                GROUP BY c.mktsegment
+    """;
 
         CalciteContext ctx = CalcitePlannerFactory.createFromMetaDb();
         RelNode bestPlan = BestPlanFinder.sqlToBestRel(sql, ctx);
@@ -47,6 +52,19 @@ public class Main {
         System.out.println(RelOptUtil.toString(bestPlan));
 
         List<RelNode> cutPoints = CutPointCollector.collectJoinCuts(bestPlan);
+
+        System.out.println(
+                "\n===== CUT ORDER ====="
+        );
+
+        for (RelNode node : cutPoints) {
+
+            System.out.println(
+                    "Node = "
+                            + node.getId()
+            );
+        }
+
         List<CutCandidate> candidates =
                 PlanStatisticsCollector.collect(
                         bestPlan,
@@ -132,6 +150,14 @@ public class Main {
         Action action =
                 policy.choose(candidates);
 
+        BaselinePolicy baselinePolicy =
+                new BaselinePolicy();
+
+        Action baselineAction =
+                baselinePolicy.choose(
+                        cutPoints
+                );
+
         System.out.println(action);
         BenchmarkResult baseline =
                 BenchmarkRunner.runBaseline(
@@ -179,6 +205,17 @@ public class Main {
         System.out.println("===== FRAGMENT 1 (Subtree at cut) =====");
         System.out.println(RelOptUtil.toString(split.fragment1()));
 
+        System.out.println("\n===== FRAGMENT 1 COLUMNS =====");
+
+        split.fragment1()
+                .getRowType()
+                .getFieldList()
+                .forEach(f ->
+                        System.out.println(
+                                f.getName()
+                        )
+                );
+
         System.out.println("===== FRAGMENT 2 (Plan with placeholder scan) =====");
         System.out.println(RelOptUtil.toString(split.fragment2()));
 
@@ -187,6 +224,20 @@ public class Main {
 
         // ----- Build SQL for PostgreSQL -----
         FragmentSqlBuilder sqlBuilder = new FragmentSqlBuilder(PostgresqlSqlDialect.DEFAULT);
+
+        System.out.println(
+                RelOptUtil.toString(split.fragment1())
+        );
+
+        System.out.println("\n===== RAW FRAGMENT1 SQL =====");
+
+        System.out.println(
+                new org.example.sql.RelToSqlService(
+                        PostgresqlSqlDialect.DEFAULT
+                ).toSql(
+                        split.fragment1()
+                )
+        );
         FragmentSql fragmentSql = sqlBuilder.build(split);
 
         System.out.println("\n===== SQL1 (CREATE TEMP TABLE ...) =====");
@@ -195,13 +246,26 @@ public class Main {
         System.out.println("\n===== SQL2 (FINAL QUERY) =====");
         System.out.println(fragmentSql.sql2());
 
+        DistributedExecutor executor =
+                new DistributedExecutor();
+
+        executor.execute(
+                fragmentSql
+        );
+
 // ----- Execute separately (SQL1 then SQL2) -----
-//        String url = "jdbc:postgresql://localhost:5432/yourdb";
-//        String user = "postgres";
-//        String pass = "password";
+        String url = "jdbc:postgresql://localhost:5432/yourdb";
+        String user = "postgres";
+        String pass = "password";
 
 //        PostgresExecutor executor = new PostgresExecutor(url, user, pass);
 //        executor.execute(fragmentSql);
+
+        System.out.println(
+                WorkerRegistry.workers()
+        );
+
+
 
 
     }

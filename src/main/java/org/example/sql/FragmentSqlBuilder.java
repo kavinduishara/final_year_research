@@ -15,8 +15,22 @@ public class FragmentSqlBuilder {
         String placeholder = split.placeholderName();
 
         // Fragment 1 -> SELECT ...
-        String frag1Select = toSql.toSql(split.fragment1());
-        String sql1 = "CREATE TEMP TABLE " + placeholder + " AS\n" + frag1Select + ";";
+//        String frag1Select = toSql.toSql(split.fragment1());
+        String frag1Select =
+                IntermediateSqlFixer.fix(
+                        toSql.toSql(
+                                split.fragment1()
+                        )
+                );
+        String sql1 =
+                "DROP TABLE IF EXISTS "
+                        + placeholder
+                        + ";\n"
+                        + "CREATE TABLE "
+                        + placeholder
+                        + " AS\n"
+                        + frag1Select
+                        + ";";
 
         // Fragment 2 -> SELECT ... FROM <placeholder> ...
         String sql2 = toSql.toSql(split.fragment2()) + ";";
