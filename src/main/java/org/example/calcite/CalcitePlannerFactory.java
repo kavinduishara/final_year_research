@@ -72,11 +72,11 @@ public class CalcitePlannerFactory {
         }
 
         // Optional: print what Calcite sees (schemas + tables)
-        System.out.println("\n=== CALCITE SCHEMAS + TABLES ===");
-        for (String sName : root.getSubSchemaNames()) {
-            SchemaPlus s = root.getSubSchema(sName);
-            System.out.println("Calcite schema: " + sName + " tables=" + s.getTableNames());
-        }
+//        System.out.println("\n=== CALCITE SCHEMAS + TABLES ===");
+//        for (String sName : root.getSubSchemaNames()) {
+//            SchemaPlus s = root.getSubSchema(sName);
+//            System.out.println("Calcite schema: " + sName + " tables=" + s.getTableNames());
+//        }
 
         // 4) Build framework config using the chosen default schema
         FrameworkConfig frameworkConfig = Frameworks.newConfigBuilder()

@@ -6,6 +6,7 @@ import org.example.calcite.BestPlanFinder;
 import org.example.calcite.CalciteContext;
 import org.example.calcite.CalcitePlannerFactory;
 import org.example.calcite.SchemaPrinter;
+import org.example.debug.ColumnOriginPrinter;
 import org.example.distributed.DistributedExecutor;
 import org.example.distributed.WorkerRegistry;
 import org.example.experiment.ExperimentRunner;
@@ -22,11 +23,14 @@ import org.example.split.SplitResult;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.dialect.PostgresqlSqlDialect;
+import org.example.sql.DynamicProjectionBuilder;
 import org.example.sql.FragmentSql;
 import org.example.sql.FragmentSqlBuilder;
 import org.example.exec.PostgresExecutor;
 
 
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.List;
 import java.util.Properties;
 
@@ -208,6 +212,15 @@ public class Main {
 
         System.out.println("\n===== FRAGMENT 1 COLUMNS =====");
 
+        ColumnOriginPrinter.print(
+                split.fragment1()
+        );
+        System.out.println(
+                DynamicProjectionBuilder.build(
+                        split.fragment1()
+                )
+        );
+
         split.fragment1()
                 .getRowType()
                 .getFieldList()
@@ -266,20 +279,20 @@ public class Main {
                 WorkerRegistry.workers()
         );
 
-//        System.out.println(
-//                "\n===== BASELINE ACTION ====="
-//        );
-//
-//        System.out.println(
-//                baselineAction
-//        );
-//
-//        long baselineTime =
-//                ExperimentRunner.run(
-//                        bestPlan,
-//                        baselineAction,
-//                        ctx
-//                );
+        System.out.println(
+                "\n===== BASELINE ACTION ====="
+        );
+
+        System.out.println(
+                baselineAction
+        );
+
+        long baselineTime =
+                ExperimentRunner.run(
+                        bestPlan,
+                        baselineAction,
+                        ctx
+                );
 //
         long rlTime =
                 ExperimentRunner.run(
@@ -287,32 +300,34 @@ public class Main {
                         action,
                         ctx
                 );
-//        double runtimeImprovement =
-//                ((baselineTime - rlTime)
-//                        / (double) baselineTime)
-//                        * 100.0;
-//
-//        System.out.println(
-//                "\n===== FINAL RESEARCH RESULT ====="
-//        );
-//
-//        System.out.println(
-//                "Baseline Runtime = "
-//                        + baselineTime
-//                        + " ms"
-//        );
-//
+        double runtimeImprovement =
+                ((baselineTime - rlTime)
+                        / (double) baselineTime)
+                        * 100.0;
+
+        System.out.println(
+                "\n===== FINAL RESEARCH RESULT ====="
+        );
+
+        System.out.println(
+                "Baseline Runtime = "
+                        + baselineTime
+                        + " ms"
+        );
+
         System.out.println(
                 "RL Runtime = "
                         + rlTime
                         + " ms"
         );
-//
-//        System.out.println(
-//                "Improvement = "
-//                        + runtimeImprovement
-//                        + "%"
-//        );
+
+        System.out.println(
+                "Improvement = "
+                        + runtimeImprovement
+                        + "%"
+        );
+
+
 
 
     }

@@ -10,14 +10,14 @@ public class WorkerRegistry {
 
                 new WorkerNode(
                         "worker1",
-                        "jdbc:postgresql://10.128.0.3:5432/w1",
+                        "jdbc:postgresql://localhost:5434/w1",
                         "postgres",
                         "0000"
                 ),
 
                 new WorkerNode(
                         "worker2",
-                        "jdbc:postgresql://10.128.0.4:5432/w2",
+                        "jdbc:postgresql://localhost:5435/w2",
                         "postgres",
                         "0000"
                 )

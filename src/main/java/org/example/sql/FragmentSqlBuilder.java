@@ -16,12 +16,28 @@ public class FragmentSqlBuilder {
 
         // Fragment 1 -> SELECT ...
 //        String frag1Select = toSql.toSql(split.fragment1());
-        String frag1Select =
-                IntermediateSqlFixer.fix(
-                        toSql.toSql(
-                                split.fragment1()
-                        )
+        System.out.println(
+                split.fragment1()
+                        .getRowType()
+                        .getFieldNames()
+        );
+        String rawSql =
+                toSql.toSql(
+                        split.fragment1()
                 );
+
+        String projection =
+                DynamicProjectionBuilder.build(
+                        split.fragment1()
+                );
+
+        int fromPos =
+                rawSql.indexOf("FROM");
+
+        String frag1Select =
+                projection
+                        + "\n"
+                        + rawSql.substring(fromPos);
 
 
         String sql1 =
