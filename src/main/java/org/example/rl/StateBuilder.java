@@ -42,7 +42,8 @@ public class StateBuilder {
         return new State(
                 rows,
                 depth,
-                cost
+                cost,
+                candidate.localityBucket()
         );
     }
 }

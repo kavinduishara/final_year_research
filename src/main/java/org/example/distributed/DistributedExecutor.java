@@ -4,23 +4,35 @@ import org.example.sql.FragmentSql;
 
 public class DistributedExecutor {
 
-    public long execute(FragmentSql sql) throws Exception {
+    public long execute(
+            FragmentSql sql,
+            String fragment1WorkerName,
+            String fragment2WorkerName
+    ) throws Exception {
 
         System.out.println(
                 "\n===== DISTRIBUTED EXECUTION ====="
         );
 
         WorkerNode worker1 =
-                WorkerRegistry.workers().get(0);
+                WorkerRegistry.byName(
+                        fragment1WorkerName
+                );
 
         WorkerNode worker2 =
-                WorkerRegistry.workers().get(1);
+                WorkerRegistry.byName(
+                        fragment2WorkerName
+                );
 
         WorkerExecutor executor =
                 new WorkerExecutor();
 
         System.out.println(
-                "Fragment1 -> worker1"
+                "Fragment1 -> "
+                        + worker1.name()
+                        + " (tables: "
+                        + worker1.tables()
+                        + ")"
         );
 
         long fragment1Time =
@@ -29,22 +41,42 @@ public class DistributedExecutor {
                         sql.sql1()
                 );
 
+        long transferTime = 0;
+
+        if (!fragment1WorkerName.equals(
+                fragment2WorkerName
+        )) {
+            System.out.println(
+                    "\nTransfer INTERMEDIATE "
+                            + sql.tempTableName()
+                            + " -> "
+                            + worker2.name()
+            );
+
+            TransferManager transferManager =
+                    new TransferManager();
+
+            transferTime =
+                    transferManager.transfer(
+                            worker1,
+                            worker2,
+                            sql.tempTableName()
+                    );
+        }
+        else {
+            System.out.println(
+                    "\nNo transfer needed (both fragments on "
+                            + worker1.name()
+                            + ")"
+            );
+        }
+
         System.out.println(
-                "\nTransfer INTERMEDIATE -> worker2"
-        );
-
-        TransferManager transferManager =
-                new TransferManager();
-
-        long transferTime =
-                transferManager.transfer(
-                        worker1,
-                        worker2,
-                        sql.tempTableName()
-                );
-
-        System.out.println(
-                "\nFragment2 -> worker2"
+                "\nFragment2 -> "
+                        + worker2.name()
+                        + " (tables: "
+                        + worker2.tables()
+                        + ")"
         );
 
         long fragment2Time =
@@ -85,7 +117,7 @@ public class DistributedExecutor {
                         + total
                         + " ms"
         );
+
         return total;
     }
-
 }

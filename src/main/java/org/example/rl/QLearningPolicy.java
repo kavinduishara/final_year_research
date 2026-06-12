@@ -19,17 +19,18 @@ public class QLearningPolicy {
 
         for (CutCandidate candidate : candidates) {
 
+            if (!candidate.executable()) {
+                continue;
+            }
+
             State state =
                     StateBuilder.from(candidate);
 
             String key =
-                    state.rowBucket()
-                            + "_"
-                            + state.depthBucket()
-                            + "_"
-                            + state.costBucket()
-                            + "_"
-                            + candidate.nodeId();
+                    stateKey(
+                            state,
+                            candidate.nodeId()
+                    );
 
             double q =
                     qTable.get(key);
@@ -42,12 +43,27 @@ public class QLearningPolicy {
 
         if (bestCandidate == null) {
             throw new IllegalStateException(
-                    "No candidate selected"
+                    "No executable candidate selected"
             );
         }
 
         return new Action(
                 bestCandidate.nodeId()
         );
+    }
+
+    public static String stateKey(
+            State state,
+            int nodeId
+    ) {
+        return state.rowBucket()
+                + "_"
+                + state.depthBucket()
+                + "_"
+                + state.costBucket()
+                + "_"
+                + state.localityBucket()
+                + "_"
+                + nodeId;
     }
 }

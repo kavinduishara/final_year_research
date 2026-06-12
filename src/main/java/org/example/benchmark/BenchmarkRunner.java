@@ -1,10 +1,7 @@
 package org.example.benchmark;
 
 import org.example.plan.CutCandidate;
-import org.example.qos.TransferCostEstimator;
 import org.example.rl.Action;
-import org.example.rl.BaselinePolicy;
-import org.example.rl.Policy;
 
 import java.util.List;
 
@@ -14,15 +11,15 @@ public class BenchmarkRunner {
             List<CutCandidate> candidates,
             List<org.apache.calcite.rel.RelNode> cutPoints) {
 
-        Policy policy = new BaselinePolicy();
+        Action action =
+                firstExecutableAction(
+                        candidates,
+                        cutPoints
+                );
 
         double totalTransfer = 0;
 
         for (int i = 0; i < 100; i++) {
-
-            Action action =
-                    policy.choose(cutPoints);
-
             CutCandidate chosen =
                     findCandidate(
                             candidates,
@@ -30,14 +27,35 @@ public class BenchmarkRunner {
                     );
 
             totalTransfer +=
-                    TransferCostEstimator.estimate(
-                            chosen.estimatedRows()
-                    );
+                    chosen.totalTransferCost();
         }
 
         return new BenchmarkResult(
                 "Baseline",
                 totalTransfer / 100.0
+        );
+    }
+
+    private static Action firstExecutableAction(
+            List<CutCandidate> candidates,
+            List<org.apache.calcite.rel.RelNode> cutPoints
+    ) {
+        for (org.apache.calcite.rel.RelNode node : cutPoints) {
+            CutCandidate candidate =
+                    findCandidate(
+                            candidates,
+                            node.getId()
+                    );
+
+            if (candidate.executable()) {
+                return new Action(
+                        candidate.nodeId()
+                );
+            }
+        }
+
+        throw new IllegalStateException(
+                "No executable cut point found"
         );
     }
 
@@ -50,6 +68,7 @@ public class BenchmarkRunner {
                 .findFirst()
                 .orElseThrow();
     }
+
     public static BenchmarkResult runQLearning(
             List<CutCandidate> candidates,
             Action learnedAction) {
@@ -65,9 +84,7 @@ public class BenchmarkRunner {
                     );
 
             totalTransfer +=
-                    TransferCostEstimator.estimate(
-                            chosen.estimatedRows()
-                    );
+                    chosen.totalTransferCost();
         }
 
         return new BenchmarkResult(

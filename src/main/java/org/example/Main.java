@@ -8,15 +8,14 @@ import org.example.calcite.CalcitePlannerFactory;
 import org.example.calcite.SchemaPrinter;
 import org.example.debug.ColumnOriginPrinter;
 import org.example.distributed.DistributedExecutor;
+import org.example.distributed.TableDistribution;
 import org.example.distributed.WorkerRegistry;
 import org.example.experiment.ExperimentRunner;
 import org.example.plan.CutCandidate;
 import org.example.plan.CutPointCollector;
+import org.example.plan.FragmentLocalityAnalyzer;
 import org.example.plan.PlanStatisticsCollector;
-import org.example.qos.QoSMetric;
-import org.example.qos.QoSMetricCalculator;
 import org.example.qos.RewardCalculator;
-import org.example.qos.TransferCostEstimator;
 import org.example.rl.*;
 import org.example.split.SingleCutSplitter;
 import org.example.split.SplitResult;
@@ -29,10 +28,7 @@ import org.example.sql.FragmentSqlBuilder;
 import org.example.exec.PostgresExecutor;
 
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.util.List;
-import java.util.Properties;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -76,55 +72,22 @@ public class Main {
                         cutPoints
                 );
 
-        System.out.println("\n===== CUT CANDIDATES =====");
-        QTable qTable =
-                new QTable();
+        TableDistribution distribution =
+                WorkerRegistry.tableDistribution();
 
-        for (int episode = 1;
-             episode <= 100;
-             episode++) {
+        distribution.print();
 
-            for (CutCandidate c : candidates) {
-
-                State state =
-                        StateBuilder.from(c);
-
-                String key =
-                        state.rowBucket()
-                                + "_"
-                                + state.depthBucket()
-                                + "_"
-                                + state.costBucket()
-                                + "_"
-                                + c.nodeId();
-
-
-                double transferCost =
-                        TransferCostEstimator
-                                .estimate(
-                                        c.estimatedRows()
-                                );
-
-                double reward =
-                        RewardCalculator.reward(
-                                transferCost,
-                                c.estimatedCost()
-                        );
-
-
-                qTable.update(
-                        key,
-                        reward
+        candidates =
+                FragmentLocalityAnalyzer.enrichAll(
+                        bestPlan,
+                        candidates,
+                        distribution,
+                        WorkerRegistry.workers()
                 );
-            }
-        }
-        qTable.print();
+
+        System.out.println("\n===== CUT CANDIDATES (with locality) =====");
 
         for (CutCandidate c : candidates) {
-
-            State s =
-                    StateBuilder.from(c);
-
             System.out.println(
                     "Node="
                             + c.nodeId()
@@ -135,14 +98,71 @@ public class Main {
                             + ", cost="
                             + c.estimatedCost()
             );
-
             System.out.println(
-                    "Node="
-                            + c.nodeId()
-                            + " State="
-                            + s
+                    "  F1 tables="
+                            + c.fragment1Tables()
+                            + " -> "
+                            + c.fragment1Worker()
+            );
+            System.out.println(
+                    "  F2 tables="
+                            + c.fragment2Tables()
+                            + " -> "
+                            + c.fragment2Worker()
+            );
+            System.out.println(
+                    "  locality="
+                            + c.localityBucket()
+                            + ", executable="
+                            + c.executable()
+                            + ", baseTransfer="
+                            + c.baseTableTransferCost()
+                            + ", intermediateTransfer="
+                            + c.intermediateTransferCost()
+                            + ", totalTransfer="
+                            + c.totalTransferCost()
+            );
+            System.out.println(
+                    "  State="
+                            + StateBuilder.from(c)
             );
         }
+
+        QTable qTable =
+                new QTable();
+
+        for (int episode = 1;
+             episode <= 100;
+             episode++) {
+
+            for (CutCandidate c : candidates) {
+
+                if (!c.executable()) {
+                    continue;
+                }
+
+                State state =
+                        StateBuilder.from(c);
+
+                String key =
+                        QLearningPolicy.stateKey(
+                                state,
+                                c.nodeId()
+                        );
+
+                double reward =
+                        RewardCalculator.reward(
+                                c.totalTransferCost(),
+                                c.estimatedCost()
+                        );
+
+                qTable.update(
+                        key,
+                        reward
+                );
+            }
+        }
+        qTable.print();
 
         if (cutPoints.isEmpty()) {
             System.out.println("No JOIN cut-points found. (Try a query with JOIN)");
@@ -155,11 +175,9 @@ public class Main {
         Action action =
                 policy.choose(candidates);
 
-        BaselinePolicy baselinePolicy =
-                new BaselinePolicy();
-
         Action baselineAction =
-                baselinePolicy.choose(
+                firstExecutableAction(
+                        candidates,
                         cutPoints
                 );
 
@@ -201,6 +219,26 @@ public class Main {
                 "Improvement = "
                         + improvement
                         + "%"
+        );
+
+        CutCandidate chosenCandidate =
+                findCandidate(
+                        candidates,
+                        action.cutNodeId()
+                );
+
+        System.out.println(
+                "\n===== RL CHOSEN CUT ====="
+        );
+        System.out.println(
+                "Node="
+                        + chosenCandidate.nodeId()
+                        + ", locality="
+                        + chosenCandidate.localityBucket()
+                        + ", workers="
+                        + chosenCandidate.fragment1Worker()
+                        + " -> "
+                        + chosenCandidate.fragment2Worker()
         );
 
         SingleCutSplitter splitter = new SingleCutSplitter();
@@ -264,7 +302,9 @@ public class Main {
                 new DistributedExecutor();
 
         executor.execute(
-                fragmentSql
+                fragmentSql,
+                chosenCandidate.fragment1Worker(),
+                chosenCandidate.fragment2Worker()
         );
 
 // ----- Execute separately (SQL1 then SQL2) -----
@@ -291,14 +331,16 @@ public class Main {
                 ExperimentRunner.run(
                         bestPlan,
                         baselineAction,
-                        ctx
+                        ctx,
+                        candidates
                 );
-//
+
         long rlTime =
                 ExperimentRunner.run(
                         bestPlan,
                         action,
-                        ctx
+                        ctx,
+                        candidates
                 );
         double runtimeImprovement =
                 ((baselineTime - rlTime)
@@ -326,9 +368,38 @@ public class Main {
                         + runtimeImprovement
                         + "%"
         );
+    }
 
+    private static CutCandidate findCandidate(
+            List<CutCandidate> candidates,
+            int nodeId
+    ) {
+        return candidates.stream()
+                .filter(c -> c.nodeId() == nodeId)
+                .findFirst()
+                .orElseThrow();
+    }
 
+    private static Action firstExecutableAction(
+            List<CutCandidate> candidates,
+            List<RelNode> cutPoints
+    ) {
+        for (RelNode node : cutPoints) {
+            CutCandidate candidate =
+                    findCandidate(
+                            candidates,
+                            node.getId()
+                    );
 
+            if (candidate.executable()) {
+                return new Action(
+                        candidate.nodeId()
+                );
+            }
+        }
 
+        throw new IllegalStateException(
+                "No executable cut point found"
+        );
     }
 }

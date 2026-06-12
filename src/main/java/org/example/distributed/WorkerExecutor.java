@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Arrays;
 
 public class WorkerExecutor {
 
@@ -26,8 +27,10 @@ public class WorkerExecutor {
                 Statement st =
                         conn.createStatement()
         ) {
-
-            st.execute(sql);
+            for (String statement :
+                    splitStatements(sql)) {
+                st.execute(statement);
+            }
         }
 
         long end =
@@ -113,5 +116,12 @@ public class WorkerExecutor {
         );
 
         return duration;
+    }
+
+    private static String[] splitStatements(String sql) {
+        return Arrays.stream(sql.split("(?<=;)"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toArray(String[]::new);
     }
 }
