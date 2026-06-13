@@ -97,9 +97,6 @@ public final class CutSelector {
         State state =
                 StateBuilder.from(candidate);
 
-        return QLearningPolicy.stateKey(
-                state,
-                candidate.nodeId()
-        );
+        return QLearningPolicy.stateKey(state);
     }
 }

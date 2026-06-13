@@ -98,19 +98,20 @@ public final class SqlInputParser {
                   --help, -h           Show this help
 
                 Modes (application.properties):
-                  training.mode=train       Train all cuts, save qtable.json
-                  training.mode=inference   Load qtable, run one cut, return results
-                  training.mode=benchmark   Run 10 built-in queries (ignores --sql)
+                  training.mode=train            Train one query, save qtable.json
+                  training.mode=workload-train   Train all 10 workload queries into one qtable.json
+                  training.mode=inference        Load qtable, run one cut, return results
+                  training.mode=benchmark        Run 10 built-in queries (compare baseline vs RL)
 
                 Examples:
                   training.mode=train
                   java -jar query_processer.jar --sql "SELECT ..."
 
+                  training.mode=workload-train
+                  java -jar query_processer.jar
+
                   training.mode=inference
                   java -jar query_processer.jar --sql "SELECT ..."
-
-                  training.mode=benchmark
-                  java -jar query_processer.jar
                 """
         );
     }

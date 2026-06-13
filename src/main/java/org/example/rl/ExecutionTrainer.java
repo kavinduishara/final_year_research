@@ -28,11 +28,29 @@ public class ExecutionTrainer {
             List<CutCandidate> candidates,
             ExecutionSession session
     ) throws Exception {
+        QTable qTable = new QTable();
+        return train(
+                bestPlan,
+                ctx,
+                candidates,
+                session,
+                qTable,
+                shouldPersistAfterTrain()
+        );
+    }
+
+    public static TrainingResult train(
+            RelNode bestPlan,
+            CalciteContext ctx,
+            List<CutCandidate> candidates,
+            ExecutionSession session,
+            QTable qTable,
+            boolean persistQTable
+    ) throws Exception {
 
         int episodes =
                 ResearchSettings.trainingEpisodes();
 
-        QTable qTable = new QTable();
         Map<Integer, ExecutionMetrics> metricsByCutNodeId =
                 new HashMap<>();
 
@@ -123,10 +141,7 @@ public class ExecutionTrainer {
                         StateBuilder.from(candidate);
 
                 String key =
-                        QLearningPolicy.stateKey(
-                                state,
-                                candidate.nodeId()
-                        );
+                        QLearningPolicy.stateKey(state);
 
                 double reward =
                         RewardCalculator.executionReward(
@@ -151,7 +166,7 @@ public class ExecutionTrainer {
             }
         }
 
-        if (!ResearchSettings.isBenchmarkMode()) {
+        if (persistQTable) {
             QTableStore.save(
                     qTable,
                     ResearchSettings.qTablePath()
@@ -162,5 +177,10 @@ public class ExecutionTrainer {
                 qTable,
                 metricsByCutNodeId
         );
+    }
+
+    private static boolean shouldPersistAfterTrain() {
+        return !ResearchSettings.isBenchmarkMode()
+                && !ResearchSettings.isWorkloadTrainMode();
     }
 }

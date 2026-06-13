@@ -19,18 +19,17 @@ public class QLearningPolicy {
         ).action();
     }
 
-    public static String stateKey(
-            State state,
-            int nodeId
-    ) {
+    /**
+     * State-only key so Q-values generalize across queries
+     * (Calcite node ids differ per plan).
+     */
+    public static String stateKey(State state) {
         return state.rowBucket()
                 + "_"
                 + state.depthBucket()
                 + "_"
                 + state.costBucket()
                 + "_"
-                + state.localityBucket()
-                + "_"
-                + nodeId;
+                + state.localityBucket();
     }
 }

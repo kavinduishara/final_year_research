@@ -52,6 +52,19 @@ public class ResearchSettings {
         );
     }
 
+    public static boolean isWorkloadTrainMode() {
+        String mode = trainingMode();
+        return "workload-train".equalsIgnoreCase(mode)
+                || "workload_train".equalsIgnoreCase(mode);
+    }
+
+    public static boolean resumeQTable() {
+        return getBoolean(
+                "training.qtable.resume",
+                false
+        );
+    }
+
     public static String trainingMode() {
         try {
             return CONFIG.get("training.mode")

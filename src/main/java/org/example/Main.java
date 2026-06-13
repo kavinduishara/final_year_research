@@ -4,6 +4,7 @@ import org.example.calcite.CalciteContext;
 import org.example.calcite.CalcitePlannerFactory;
 import org.example.config.ResearchSettings;
 import org.example.experiment.QueryBenchmarkRunner;
+import org.example.experiment.WorkloadTrainer;
 import org.example.query.QueryService;
 import org.example.query.SqlInputParser;
 
@@ -36,6 +37,19 @@ public class Main {
                 System.out.println();
             }
             QueryBenchmarkRunner.run(ctx);
+            return;
+        }
+
+        if (ResearchSettings.isWorkloadTrainMode()) {
+            if (options.sqlFromCli()) {
+                System.out.println(
+                        "Note: workload-train mode runs all "
+                                + "ResearchQueryWorkload queries; "
+                                + "--sql / --file is ignored."
+                );
+                System.out.println();
+            }
+            WorkloadTrainer.run(ctx);
             return;
         }
 
