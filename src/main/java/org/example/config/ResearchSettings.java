@@ -19,6 +19,20 @@ public class ResearchSettings {
         );
     }
 
+    public static boolean cleanupBetweenQueries() {
+        return getBoolean(
+                "research.cleanup.between.queries",
+                true
+        );
+    }
+
+    public static boolean cleanupAfterExecution() {
+        return getBoolean(
+                "research.cleanup.after.execution",
+                true
+        );
+    }
+
     public static int trainingEpisodes() {
         return getInt(
                 "training.episodes",

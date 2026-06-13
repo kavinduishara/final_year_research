@@ -124,6 +124,11 @@ public class DistributedExecutor {
 
         printMetrics(metrics);
 
+        ResearchEnvironmentCleaner.cleanupAfterExecution(
+                cut,
+                sql.tempTableName()
+        );
+
         return new DistributedExecutionResult(
                 metrics,
                 fragment2.data().columnNames(),

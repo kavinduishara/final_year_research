@@ -9,6 +9,7 @@ import org.example.calcite.CalciteContext;
 import org.example.calcite.SchemaPrinter;
 import org.example.config.ResearchSettings;
 import org.example.distributed.DistributedExecutionResult;
+import org.example.distributed.ResearchEnvironmentCleaner;
 import org.example.distributed.TableDistribution;
 import org.example.distributed.WorkerRegistry;
 import org.example.experiment.DistributedQueryRunner;
@@ -53,6 +54,8 @@ public final class QueryService {
                         sql,
                         verbose
                 );
+
+        ResearchEnvironmentCleaner.cleanupBetweenQueries();
 
         if (prepared.cutPoints().isEmpty()) {
             throw new IllegalStateException(

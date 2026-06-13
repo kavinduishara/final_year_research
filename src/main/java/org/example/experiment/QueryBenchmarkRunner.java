@@ -8,6 +8,7 @@ import org.example.calcite.CalciteContext;
 import org.example.config.ResearchSettings;
 import org.example.distributed.TableDistribution;
 import org.example.distributed.WorkerRegistry;
+import org.example.distributed.ResearchEnvironmentCleaner;
 import org.example.plan.CutCandidate;
 import org.example.plan.CutPointCollector;
 import org.example.plan.FragmentLocalityAnalyzer;
@@ -88,6 +89,8 @@ public class QueryBenchmarkRunner {
 
             System.out.println(query.sql());
             System.out.flush();
+
+            ResearchEnvironmentCleaner.cleanupBetweenQueries();
 
             RelNode plan =
                     BestPlanFinder.sqlToBestRel(
