@@ -102,6 +102,19 @@ public class FragmentLocalityAnalyzer {
                         shippingEnabled
                 );
 
+        double baselineDecisionCost =
+                org.example.qos.BaselineCostEstimator
+                        .decisionCost(
+                                base,
+                                fragment1Tables,
+                                fragment1Worker,
+                                fragment2Worker,
+                                baseTableTransfer,
+                                intermediateTransfer,
+                                totalTransfer,
+                                tableRows
+                        );
+
         return new CutCandidate(
                 base.nodeId(),
                 base.estimatedRows(),
@@ -114,6 +127,7 @@ public class FragmentLocalityAnalyzer {
                 baseTableTransfer,
                 intermediateTransfer,
                 totalTransfer,
+                baselineDecisionCost,
                 localityBucket,
                 executable
         );

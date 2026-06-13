@@ -14,7 +14,7 @@ import org.example.plan.CutPointCollector;
 import org.example.plan.FragmentLocalityAnalyzer;
 import org.example.plan.PlanStatisticsCollector;
 import org.example.rl.Action;
-import org.example.rl.DeepJoinBaselinePolicy;
+import org.example.rl.BaselinePolicyFactory;
 import org.example.rl.ExecutionTrainer;
 import org.example.rl.QLearningPolicy;
 
@@ -60,6 +60,14 @@ public class QueryBenchmarkRunner {
         System.out.println(
                 "Shipping enabled   = "
                         + ResearchSettings.shippingEnabled()
+        );
+
+        System.out.println(
+                "Baseline policy    = "
+                        + BaselinePolicyFactory.displayName()
+                        + " ("
+                        + ResearchSettings.baselineMode()
+                        + ")"
         );
 
         System.out.flush();
@@ -164,16 +172,14 @@ public class QueryBenchmarkRunner {
             Action rlAction =
                     policy.choose(candidates);
 
-            DeepJoinBaselinePolicy baselinePolicy =
-                    new DeepJoinBaselinePolicy();
-
             Action baselineAction =
-                    baselinePolicy.choose(
+                    BaselinePolicyFactory.choose(
+                            candidates,
                             cutPoints
                     );
 
             BenchmarkResult baseline =
-                    BenchmarkRunner.runDeepJoinBaseline(
+                    BenchmarkRunner.runBaseline(
                             candidates,
                             cutPoints,
                             training.metricsByCutNodeId()
@@ -215,7 +221,10 @@ public class QueryBenchmarkRunner {
             printQueryResult(
                     row,
                     baseline,
-                    rl
+                    rl,
+                    candidates,
+                    baselineAction,
+                    rlAction
             );
         }
 
@@ -227,7 +236,10 @@ public class QueryBenchmarkRunner {
     private static void printQueryResult(
             QueryBenchmarkRow row,
             BenchmarkResult baseline,
-            BenchmarkResult rl
+            BenchmarkResult rl,
+            List<CutCandidate> candidates,
+            Action baselineAction,
+            Action rlAction
     ) {
         System.out.println(
                 "\n----- Query "
@@ -236,7 +248,8 @@ public class QueryBenchmarkRunner {
         );
 
         System.out.println(
-                "DeepJoin cut node = "
+                BaselinePolicyFactory.displayName()
+                        + " cut node = "
                         + row.baselineCutNode()
                         + ", total = "
                         + row.baselineTotalMs()
@@ -265,6 +278,57 @@ public class QueryBenchmarkRunner {
                     "Note: same cut chosen (0% expected)."
             );
         }
+        else if (row.improvementPercent() > 0) {
+            printCutDecisionHint(
+                    candidates,
+                    baselineAction,
+                    rlAction
+            );
+        }
+        else if (row.improvementPercent() < 0) {
+            System.out.println(
+                    "Note: baseline faster on this query "
+                            + "(RL did not beat static estimate)."
+            );
+        }
+    }
+
+    private static void printCutDecisionHint(
+            List<CutCandidate> candidates,
+            Action baselineAction,
+            Action rlAction
+    ) {
+        CutCandidate baselineCut =
+                findCandidate(
+                        candidates,
+                        baselineAction.cutNodeId()
+                );
+
+        CutCandidate rlCut =
+                findCandidate(
+                        candidates,
+                        rlAction.cutNodeId()
+                );
+
+        System.out.println(
+                "Note: baseline est. cost = "
+                        + (long) baselineCut.baselineDecisionCost()
+                        + ", RL cut est. cost = "
+                        + (long) rlCut.baselineDecisionCost()
+                        + " — RL chose better after execution."
+        );
+    }
+
+    private static CutCandidate findCandidate(
+            List<CutCandidate> candidates,
+            int nodeId
+    ) {
+        return candidates.stream()
+                .filter(c ->
+                        c.nodeId() == nodeId
+                )
+                .findFirst()
+                .orElseThrow();
     }
 
     private static void printSummaryTable(

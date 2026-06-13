@@ -73,6 +73,61 @@ public class ResearchSettings {
         }
     }
 
+    /**
+     * static-qos = min estimated transfer (default, realistic traditional baseline)
+     * combined-estimate = calcite cost + weighted transfer
+     * deep-join = deepest join cut (weak ablation baseline)
+     */
+    public static String baselineMode() {
+        try {
+            return CONFIG.get("benchmark.baseline")
+                    .trim()
+                    .toLowerCase();
+        }
+        catch (Exception e) {
+            return "static-qos";
+        }
+    }
+
+    public static double baselineTransferWeight() {
+        try {
+            return Double.parseDouble(
+                    CONFIG.get(
+                            "benchmark.baseline.transfer.weight"
+                    )
+            );
+        }
+        catch (Exception e) {
+            return 1.0;
+        }
+    }
+
+    public static double baselineShipWeight() {
+        try {
+            return Double.parseDouble(
+                    CONFIG.get(
+                            "benchmark.baseline.ship.weight"
+                    )
+            );
+        }
+        catch (Exception e) {
+            return 0.02;
+        }
+    }
+
+    public static double baselinePessimismFactor() {
+        try {
+            return Double.parseDouble(
+                    CONFIG.get(
+                            "benchmark.baseline.pessimism.factor"
+                    )
+            );
+        }
+        catch (Exception e) {
+            return 4.5;
+        }
+    }
+
     private static boolean getBoolean(
             String key,
             boolean defaultValue

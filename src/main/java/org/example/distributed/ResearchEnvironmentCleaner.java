@@ -85,6 +85,28 @@ public final class ResearchEnvironmentCleaner {
                     intermediateTableName
             );
         }
+
+        resetShippedBaseTables();
+    }
+
+    private static void resetShippedBaseTables() {
+
+        TableDistribution distribution =
+                WorkerRegistry.tableDistribution();
+
+        List<WorkerNode> workers =
+                WorkerRegistry.workers();
+
+        Set<String> allTables =
+                allKnownTables(workers);
+
+        for (WorkerNode worker : workers) {
+            dropShippedBaseTables(
+                    worker,
+                    allTables,
+                    distribution
+            );
+        }
     }
 
     private static Set<String> allKnownTables(

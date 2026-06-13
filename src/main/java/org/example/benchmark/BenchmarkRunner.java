@@ -3,8 +3,7 @@ package org.example.benchmark;
 import org.example.exec.ExecutionMetrics;
 import org.example.plan.CutCandidate;
 import org.example.rl.Action;
-import org.example.rl.DeepJoinBaselinePolicy;
-import org.example.rl.Policy;
+import org.example.rl.BaselinePolicyFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -27,21 +26,35 @@ public class BenchmarkRunner {
         );
     }
 
+    public static BenchmarkResult runBaseline(
+            List<CutCandidate> candidates,
+            List<org.apache.calcite.rel.RelNode> cutPoints,
+            Map<Integer, ExecutionMetrics> metricsByCutNodeId
+    ) {
+        Action action =
+                BaselinePolicyFactory.choose(
+                        candidates,
+                        cutPoints
+                );
+
+        return metricsForAction(
+                BaselinePolicyFactory.displayName(),
+                action,
+                candidates,
+                metricsByCutNodeId
+        );
+    }
+
+    /** @deprecated use {@link #runBaseline} */
+    @Deprecated
     public static BenchmarkResult runDeepJoinBaseline(
             List<CutCandidate> candidates,
             List<org.apache.calcite.rel.RelNode> cutPoints,
             Map<Integer, ExecutionMetrics> metricsByCutNodeId
     ) {
-        Policy policy =
-                new DeepJoinBaselinePolicy();
-
-        Action action =
-                policy.choose(cutPoints);
-
-        return metricsForAction(
-                "DeepJoinBaseline",
-                action,
+        return runBaseline(
                 candidates,
+                cutPoints,
                 metricsByCutNodeId
         );
     }

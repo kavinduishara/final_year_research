@@ -5,9 +5,9 @@ import org.apache.calcite.rel.RelNode;
 import java.util.List;
 
 /**
- * Weak baseline for research: always cut at the first (root) join in the plan.
- * Often requires shipping large base tables and is expected to lose to RL.
+ * @deprecated Use {@link BaselinePolicyFactory} with benchmark.baseline=deep-join.
  */
+@Deprecated
 public class DeepJoinBaselinePolicy implements Policy {
 
     @Override

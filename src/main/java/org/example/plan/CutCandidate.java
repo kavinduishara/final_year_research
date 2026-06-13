@@ -14,6 +14,7 @@ public record CutCandidate(
         double baseTableTransferCost,
         double intermediateTransferCost,
         double totalTransferCost,
+        double baselineDecisionCost,
         String localityBucket,
         boolean executable
 ) {
@@ -32,6 +33,7 @@ public record CutCandidate(
                 Set.of(),
                 "",
                 "",
+                0,
                 0,
                 0,
                 0,

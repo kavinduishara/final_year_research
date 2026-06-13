@@ -49,14 +49,15 @@ public final class ResearchQueryWorkload {
 
     private static ResearchQuery q2() {
         return new ResearchQuery(
-                "Q2_order_count_by_segment",
+                "Q2_selective_segment",
                 """
                         SELECT c.mktsegment,
                                COUNT(DISTINCT o.orderkey)
                         FROM customer c
                         JOIN orders o ON c.custkey = o.custkey
                         JOIN lineitem l ON o.orderkey = l.orderkey
-                        WHERE o.orderdate >= DATE '1995-01-01'
+                        WHERE c.mktsegment = 'BUILDING'
+                          AND o.orderdate >= DATE '1995-01-01'
                         GROUP BY c.mktsegment
                         """
         );
@@ -123,29 +124,31 @@ public final class ResearchQueryWorkload {
 
     private static ResearchQuery q7() {
         return new ResearchQuery(
-                "Q7_discount_by_returnflag",
+                "Q7_selective_shipdate",
                 """
-                        SELECT l.returnflag,
-                               AVG(l.discount)
+                        SELECT l.shipmode,
+                               SUM(l.quantity)
                         FROM customer c
                         JOIN orders o ON c.custkey = o.custkey
                         JOIN lineitem l ON o.orderkey = l.orderkey
-                        WHERE o.totalprice > 1000
-                        GROUP BY l.returnflag
+                        WHERE l.shipdate = DATE '1998-09-27'
+                        GROUP BY l.shipmode
                         """
         );
     }
 
     private static ResearchQuery q8() {
         return new ResearchQuery(
-                "Q8_max_order_by_nation",
+                "Q8_automobile_high_qty",
                 """
-                        SELECT c.nationkey,
-                               MAX(o.totalprice)
+                        SELECT c.mktsegment,
+                               AVG(l.extendedprice)
                         FROM customer c
                         JOIN orders o ON c.custkey = o.custkey
                         JOIN lineitem l ON o.orderkey = l.orderkey
-                        GROUP BY c.nationkey
+                        WHERE c.mktsegment = 'AUTOMOBILE'
+                          AND l.quantity > 45
+                        GROUP BY c.mktsegment
                         """
         );
     }

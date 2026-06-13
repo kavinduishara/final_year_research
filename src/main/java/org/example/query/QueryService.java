@@ -20,9 +20,9 @@ import org.example.plan.CutPointCollector;
 import org.example.plan.FragmentLocalityAnalyzer;
 import org.example.plan.PlanStatisticsCollector;
 import org.example.rl.Action;
+import org.example.rl.BaselinePolicyFactory;
 import org.example.rl.CutSelection;
 import org.example.rl.CutSelector;
-import org.example.rl.DeepJoinBaselinePolicy;
 import org.example.rl.ExecutionTrainer;
 import org.example.rl.QTable;
 import org.example.rl.QTableStore;
@@ -243,11 +243,9 @@ public final class QueryService {
 
         printSelection(selection);
 
-        DeepJoinBaselinePolicy baselinePolicy =
-                new DeepJoinBaselinePolicy();
-
         Action baselineAction =
-                baselinePolicy.choose(
+                BaselinePolicyFactory.choose(
+                        prepared.candidates(),
                         prepared.cutPoints()
                 );
 
@@ -255,7 +253,7 @@ public final class QueryService {
                 training.metricsByCutNodeId();
 
         BenchmarkResult baseline =
-                BenchmarkRunner.runDeepJoinBaseline(
+                BenchmarkRunner.runBaseline(
                         prepared.candidates(),
                         prepared.cutPoints(),
                         metricsByCut
@@ -364,6 +362,8 @@ public final class QueryService {
                             + candidate.localityBucket()
                             + ", transfer="
                             + candidate.totalTransferCost()
+                            + ", baselineEst="
+                            + candidate.baselineDecisionCost()
             );
         }
     }
