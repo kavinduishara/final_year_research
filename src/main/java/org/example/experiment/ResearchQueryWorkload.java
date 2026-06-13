@@ -28,6 +28,10 @@ public final class ResearchQueryWorkload {
         );
     }
 
+    public static String defaultSql() {
+        return q1().sql();
+    }
+
     private static ResearchQuery q1() {
         return new ResearchQuery(
                 "Q1_mktsegment_revenue",

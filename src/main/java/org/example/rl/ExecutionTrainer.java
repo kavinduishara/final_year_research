@@ -112,7 +112,7 @@ public class ExecutionTrainer {
                                 episode == 1
                                         && candidate
                                         == ordered.get(0)
-                        );
+                        ).metrics();
 
                 metricsByCutNodeId.put(
                         candidate.nodeId(),

@@ -6,7 +6,7 @@ import org.example.sql.FragmentSql;
 
 public class DistributedExecutor {
 
-    public ExecutionMetrics execute(
+    public DistributedExecutionResult execute(
             FragmentSql sql,
             CutCandidate cut,
             TableDistribution distribution
@@ -108,8 +108,8 @@ public class DistributedExecutor {
                         + ")"
         );
 
-        long fragment2Time =
-                executor.executeQuery(
+        WorkerExecutor.QueryExecutionResult fragment2 =
+                executor.executeQueryCollect(
                         worker2,
                         sql.sql2()
                 );
@@ -119,12 +119,16 @@ public class DistributedExecutor {
                         fragment1Time,
                         baseTableShipTime,
                         intermediateTransferTime,
-                        fragment2Time
+                        fragment2.executionTimeMs()
                 );
 
         printMetrics(metrics);
 
-        return metrics;
+        return new DistributedExecutionResult(
+                metrics,
+                fragment2.data().columnNames(),
+                fragment2.data().rows()
+        );
     }
 
     private static void printMetrics(

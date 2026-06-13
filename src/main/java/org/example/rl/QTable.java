@@ -52,6 +52,10 @@ public class QTable {
         );
     }
 
+    public boolean contains(String stateAction) {
+        return table.containsKey(stateAction);
+    }
+
     public void update(
             String key,
             double reward) {

@@ -13,43 +13,10 @@ public class QLearningPolicy {
     }
 
     public Action choose(List<CutCandidate> candidates) {
-
-        CutCandidate bestCandidate = null;
-        double bestQ = Double.NEGATIVE_INFINITY;
-
-        for (CutCandidate candidate : candidates) {
-
-            if (!candidate.executable()) {
-                continue;
-            }
-
-            State state =
-                    StateBuilder.from(candidate);
-
-            String key =
-                    stateKey(
-                            state,
-                            candidate.nodeId()
-                    );
-
-            double q =
-                    qTable.get(key);
-
-            if (q > bestQ) {
-                bestQ = q;
-                bestCandidate = candidate;
-            }
-        }
-
-        if (bestCandidate == null) {
-            throw new IllegalStateException(
-                    "No executable candidate selected"
-            );
-        }
-
-        return new Action(
-                bestCandidate.nodeId()
-        );
+        return CutSelector.choose(
+                candidates,
+                qTable
+        ).action();
     }
 
     public static String stateKey(

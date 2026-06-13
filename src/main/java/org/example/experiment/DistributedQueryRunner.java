@@ -3,10 +3,10 @@ package org.example.experiment;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.dialect.PostgresqlSqlDialect;
 import org.example.calcite.CalciteContext;
+import org.example.distributed.DistributedExecutionResult;
 import org.example.distributed.DistributedExecutor;
 import org.example.distributed.TableDistribution;
 import org.example.distributed.WorkerRegistry;
-import org.example.exec.ExecutionMetrics;
 import org.example.plan.CutCandidate;
 import org.example.rl.Action;
 import org.example.split.SingleCutSplitter;
@@ -16,7 +16,7 @@ import org.example.sql.FragmentSqlBuilder;
 
 public class DistributedQueryRunner {
 
-    public static ExecutionMetrics execute(
+    public static DistributedExecutionResult execute(
             RelNode bestPlan,
             Action action,
             CalciteContext ctx,

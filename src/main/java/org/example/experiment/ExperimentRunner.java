@@ -33,6 +33,6 @@ public class ExperimentRunner {
                 chosen,
                 ExecutionSession.single(),
                 true
-        );
+        ).metrics();
     }
 }

@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.List;
 
 public class WorkerExecutor {
 
@@ -104,7 +105,13 @@ public class WorkerExecutor {
         return duration;
     }
 
-    public long executeQuery(
+    public record QueryExecutionResult(
+            CollectedRows data,
+            long executionTimeMs
+    ) {
+    }
+
+    public QueryExecutionResult executeQueryCollect(
             WorkerNode worker,
             String sql
     ) throws Exception {
@@ -126,46 +133,82 @@ public class WorkerExecutor {
                 ResultSet rs =
                         st.executeQuery(sql)
         ) {
+            CollectedRows data =
+                    ResultCollector.collect(rs);
 
-            int cols =
-                    rs.getMetaData()
-                            .getColumnCount();
+            long duration =
+                    System.currentTimeMillis() - start;
 
-            int rowCount = 0;
+            System.out.println(
+                    "Query executed on "
+                            + worker.name()
+                            + " in "
+                            + duration
+                            + " ms ("
+                            + data.rows().size()
+                            + " rows)"
+            );
 
-            while (rs.next() && rowCount < 10) {
-
-                StringBuilder row =
-                        new StringBuilder();
-
-                for (int i = 1; i <= cols; i++) {
-
-                    row.append(
-                            rs.getObject(i)
-                    );
-
-                    if (i < cols) {
-                        row.append(" | ");
-                    }
-                }
-
-                System.out.println(row);
-
-                rowCount++;
-            }
+            return new QueryExecutionResult(
+                    data,
+                    duration
+            );
         }
+    }
 
-        long duration =
-                System.currentTimeMillis() - start;
+    public long executeQuery(
+            WorkerNode worker,
+            String sql
+    ) throws Exception {
 
-        System.out.println(
-                "Query executed on "
-                        + worker.name()
-                        + " in "
-                        + duration
-                        + " ms"
+        QueryExecutionResult result =
+                executeQueryCollect(
+                        worker,
+                        sql
+                );
+
+        printPreview(
+                result.data()
         );
 
-        return duration;
+        return result.executionTimeMs();
+    }
+
+    private static void printPreview(
+            CollectedRows data
+    ) {
+        int limit =
+                Math.min(
+                        10,
+                        data.rows().size()
+                );
+
+        for (int r = 0; r < limit; r++) {
+
+            List<Object> row =
+                    data.rows().get(r);
+
+            StringBuilder line =
+                    new StringBuilder();
+
+            for (int c = 0; c < row.size(); c++) {
+
+                line.append(row.get(c));
+
+                if (c < row.size() - 1) {
+                    line.append(" | ");
+                }
+            }
+
+            System.out.println(line);
+        }
+
+        if (data.rows().size() > limit) {
+            System.out.println(
+                    "... ("
+                            + (data.rows().size() - limit)
+                            + " more rows)"
+            );
+        }
     }
 }
