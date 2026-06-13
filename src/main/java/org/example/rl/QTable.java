@@ -26,6 +26,18 @@ public class QTable {
         );
     }
 
+    public Map<String, Double> entries() {
+        return Map.copyOf(table);
+    }
+
+    public static QTable fromEntries(
+            Map<String, Double> entries
+    ) {
+        QTable qTable = new QTable();
+        qTable.table.putAll(entries);
+        return qTable;
+    }
+
     public void print() {
 
         System.out.println(
@@ -39,6 +51,7 @@ public class QTable {
                         )
         );
     }
+
     public void update(
             String key,
             double reward) {

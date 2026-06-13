@@ -4,9 +4,69 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.Arrays;
 
 public class WorkerExecutor {
+
+    public long executeDrop(
+            WorkerNode worker,
+            String dropSql
+    ) throws Exception {
+
+        long start =
+                System.currentTimeMillis();
+
+        try (
+                Connection conn =
+                        DriverManager.getConnection(
+                                worker.jdbcUrl(),
+                                worker.user(),
+                                worker.password()
+                        );
+
+                Statement st =
+                        conn.createStatement()
+        ) {
+            st.execute(dropSql);
+        }
+
+        return System.currentTimeMillis() - start;
+    }
+
+    public long executeCreate(
+            WorkerNode worker,
+            String createSql
+    ) throws Exception {
+
+        long start =
+                System.currentTimeMillis();
+
+        try (
+                Connection conn =
+                        DriverManager.getConnection(
+                                worker.jdbcUrl(),
+                                worker.user(),
+                                worker.password()
+                        );
+
+                Statement st =
+                        conn.createStatement()
+        ) {
+            st.execute(createSql);
+        }
+
+        long duration =
+                System.currentTimeMillis() - start;
+
+        System.out.println(
+                "Created intermediate on "
+                        + worker.name()
+                        + " in "
+                        + duration
+                        + " ms"
+        );
+
+        return duration;
+    }
 
     public long executeUpdate(
             WorkerNode worker,
@@ -27,17 +87,11 @@ public class WorkerExecutor {
                 Statement st =
                         conn.createStatement()
         ) {
-            for (String statement :
-                    splitStatements(sql)) {
-                st.execute(statement);
-            }
+            st.execute(sql);
         }
 
-        long end =
-                System.currentTimeMillis();
-
         long duration =
-                end - start;
+                System.currentTimeMillis() - start;
 
         System.out.println(
                 "Executed on "
@@ -101,11 +155,8 @@ public class WorkerExecutor {
             }
         }
 
-        long end =
-                System.currentTimeMillis();
-
         long duration =
-                end - start;
+                System.currentTimeMillis() - start;
 
         System.out.println(
                 "Query executed on "
@@ -116,12 +167,5 @@ public class WorkerExecutor {
         );
 
         return duration;
-    }
-
-    private static String[] splitStatements(String sql) {
-        return Arrays.stream(sql.split("(?<=;)"))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toArray(String[]::new);
     }
 }

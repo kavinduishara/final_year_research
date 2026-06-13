@@ -72,7 +72,10 @@ public class PostgresExecutor {
         );
 
         return new ExecutionMetrics(
-                elapsedMs
+                elapsedMs,
+                0,
+                0,
+                0
         );
     }
 

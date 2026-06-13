@@ -1,8 +1,16 @@
 package org.example.distributed;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 
 public class TransferManager {
+
+    private static final int BATCH_SIZE = 10_000;
+    private static final int PROGRESS_EVERY = 100_000;
 
     public long transfer(
             WorkerNode source,
@@ -12,6 +20,17 @@ public class TransferManager {
 
         long start =
                 System.currentTimeMillis();
+
+        System.out.println(
+                "Copying \""
+                        + tableName
+                        + "\" from "
+                        + source.name()
+                        + " to "
+                        + target.name()
+                        + " ..."
+        );
+        System.out.flush();
 
         try (
                 Connection src =
@@ -36,7 +55,9 @@ public class TransferManager {
 
             ResultSet rs =
                     srcStmt.executeQuery(
-                            "SELECT * FROM " + tableName
+                            "SELECT * FROM \""
+                                    + tableName
+                                    + "\""
                     );
 
             ResultSetMetaData md =
@@ -45,39 +66,12 @@ public class TransferManager {
             int cols =
                     md.getColumnCount();
 
-            StringBuilder create =
-                    new StringBuilder();
-
-            create.append(
-                    "CREATE TABLE IF NOT EXISTS \""
-                            + tableName
-                            + "\" ("
-            );
-
-            for (int i = 1; i <= cols; i++) {
-
-                String columnName =
-                        md.getColumnName(i);
-
-                String columnType =
-                        md.getColumnTypeName(i);
-
-                System.out.println(
-                        columnName
-                                + " -> "
-                                + columnType
-                );
-
-                create.append(columnName)
-                        .append(" ")
-                        .append(columnType);
-
-                if (i < cols) {
-                    create.append(",");
-                }
-            }
-
-            create.append(")");
+            String createSql =
+                    buildCreateSql(
+                            tableName,
+                            md,
+                            cols
+                    );
 
             dst.createStatement()
                     .execute(
@@ -87,41 +81,14 @@ public class TransferManager {
                     );
 
             dst.createStatement()
-                    .execute(
-                            create.toString()
-                    );
-
-            System.out.println(
-                    "\nCREATE SQL:"
-            );
-
-            System.out.println(
-                    create
-            );
-
-            StringBuilder insertSql =
-                    new StringBuilder();
-
-            insertSql.append(
-                    "INSERT INTO \""
-                            + tableName
-                            + "\" VALUES ("
-            );
-
-            for (int i = 1; i <= cols; i++) {
-
-                insertSql.append("?");
-
-                if (i < cols) {
-                    insertSql.append(",");
-                }
-            }
-
-            insertSql.append(")");
+                    .execute(createSql);
 
             PreparedStatement ps =
                     dst.prepareStatement(
-                            insertSql.toString()
+                            buildInsertSql(
+                                    tableName,
+                                    cols
+                            )
                     );
 
             int rowCount = 0;
@@ -129,7 +96,6 @@ public class TransferManager {
             while (rs.next()) {
 
                 for (int i = 1; i <= cols; i++) {
-
                     ps.setObject(
                             i,
                             rs.getObject(i)
@@ -137,43 +103,97 @@ public class TransferManager {
                 }
 
                 ps.addBatch();
-
                 rowCount++;
 
-                if (rowCount % 1000 == 0) {
+                if (rowCount % BATCH_SIZE == 0) {
                     ps.executeBatch();
+                    ps.clearBatch();
+
+                    if (rowCount % PROGRESS_EVERY == 0) {
+                        System.out.println(
+                                "  ... "
+                                        + rowCount
+                                        + " rows copied"
+                        );
+                        System.out.flush();
+                    }
                 }
             }
 
             ps.executeBatch();
-
+            ps.clearBatch();
             dst.commit();
 
-            System.out.println(
-                    "Rows copied = "
-                            + rowCount
-            );
-
-            System.out.println(
-                    "Transferred "
-                            + tableName
-                            + " to "
-                            + target.name()
-            );
-
-            long end =
-                    System.currentTimeMillis();
-
             long duration =
-                    end - start;
+                    System.currentTimeMillis()
+                            - start;
 
             System.out.println(
-                    "Transfer Time = "
+                    "Done: "
+                            + rowCount
+                            + " rows in "
                             + duration
                             + " ms"
             );
+            System.out.flush();
 
             return duration;
         }
+    }
+
+    private static String buildCreateSql(
+            String tableName,
+            ResultSetMetaData md,
+            int cols
+    ) throws Exception {
+
+        StringBuilder create =
+                new StringBuilder();
+
+        create.append(
+                "CREATE TABLE \""
+                        + tableName
+                        + "\" ("
+        );
+
+        for (int i = 1; i <= cols; i++) {
+            create.append(md.getColumnName(i))
+                    .append(" ")
+                    .append(md.getColumnTypeName(i));
+
+            if (i < cols) {
+                create.append(",");
+            }
+        }
+
+        create.append(")");
+
+        return create.toString();
+    }
+
+    private static String buildInsertSql(
+            String tableName,
+            int cols
+    ) {
+        StringBuilder insertSql =
+                new StringBuilder();
+
+        insertSql.append(
+                "INSERT INTO \""
+                        + tableName
+                        + "\" VALUES ("
+        );
+
+        for (int i = 1; i <= cols; i++) {
+            insertSql.append("?");
+
+            if (i < cols) {
+                insertSql.append(",");
+            }
+        }
+
+        insertSql.append(")");
+
+        return insertSql.toString();
     }
 }

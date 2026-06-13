@@ -1,62 +1,62 @@
-package org.example.sql;
-
-import org.apache.calcite.sql.SqlDialect;
-import org.example.split.SplitResult;
-
-public class FragmentSqlBuilder {
-
-    private final RelToSqlService toSql;
-
-    public FragmentSqlBuilder(SqlDialect dialect) {
-        this.toSql = new RelToSqlService(dialect);
-    }
-
-    public FragmentSql build(SplitResult split) {
-        String placeholder = split.placeholderName();
-
-        // Fragment 1 -> SELECT ...
-//        String frag1Select = toSql.toSql(split.fragment1());
-        System.out.println(
-                split.fragment1()
-                        .getRowType()
-                        .getFieldNames()
-        );
-        String rawSql =
-                toSql.toSql(
-                        split.fragment1()
-                );
-
-        String projection =
-                DynamicProjectionBuilder.build(
-                        split.fragment1()
-                );
-
-        int fromPos =
-                rawSql.indexOf("FROM");
-
-        String frag1Select =
-                projection
-                        + "\n"
-                        + rawSql.substring(fromPos);
-
-
-        String sql1 =
-                "DROP TABLE IF EXISTS "
-                        + placeholder
-                        + ";\n"
-                        + "CREATE TABLE "
-                        + placeholder
-                        + " AS\n"
-                        + frag1Select
-                        + ";";
-
-        // Fragment 2 -> SELECT ... FROM <placeholder> ...
-        String sql2 = toSql.toSql(split.fragment2()) + ";";
-
-        return new FragmentSql(
-                sql1,
-                sql2,
-                split.placeholderName()
-        );
-    }
-}
+package org.example.sql;
+
+import org.apache.calcite.sql.SqlDialect;
+import org.example.split.SplitResult;
+
+public class FragmentSqlBuilder {
+
+    private final RelToSqlService toSql;
+
+    public FragmentSqlBuilder(SqlDialect dialect) {
+        this.toSql = new RelToSqlService(dialect);
+    }
+
+    public FragmentSql build(SplitResult split) {
+        String placeholder = split.placeholderName();
+        String quoted =
+                quoteIdentifier(placeholder);
+
+        String rawSql =
+                toSql.toSql(
+                        split.fragment1()
+                );
+
+        String projection =
+                DynamicProjectionBuilder.build(
+                        split.fragment1()
+                );
+
+        int fromPos =
+                rawSql.indexOf("FROM");
+
+        String frag1Select =
+                projection
+                        + "\n"
+                        + rawSql.substring(fromPos);
+
+        String dropSql =
+                "DROP TABLE IF EXISTS "
+                        + quoted
+                        + " CASCADE";
+
+        String createSql =
+                "CREATE TABLE "
+                        + quoted
+                        + " AS\n"
+                        + frag1Select;
+
+        String sql2 =
+                toSql.toSql(split.fragment2()) + ";";
+
+        return new FragmentSql(
+                dropSql,
+                createSql,
+                sql2,
+                placeholder
+        );
+    }
+
+    private static String quoteIdentifier(String name) {
+        return "\"" + name + "\"";
+    }
+}

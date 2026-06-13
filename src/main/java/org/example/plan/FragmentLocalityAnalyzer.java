@@ -1,6 +1,7 @@
 package org.example.plan;
 
 import org.apache.calcite.rel.RelNode;
+import org.example.config.ResearchSettings;
 import org.example.distributed.TableDistribution;
 import org.example.distributed.WorkerNode;
 import org.example.qos.TransferCostEstimator;
@@ -18,7 +19,8 @@ public class FragmentLocalityAnalyzer {
             RelNode cutNode,
             CutCandidate base,
             TableDistribution distribution,
-            List<WorkerNode> workers
+            List<WorkerNode> workers,
+            boolean shippingEnabled
     ) {
         Set<String> fragment1Tables =
                 RelTableCollector.collect(cutNode);
@@ -85,7 +87,8 @@ public class FragmentLocalityAnalyzer {
                         fragment1Worker,
                         fragment2Tables,
                         fragment2Worker,
-                        distribution
+                        distribution,
+                        shippingEnabled
                 );
 
         String localityBucket =
@@ -95,7 +98,8 @@ public class FragmentLocalityAnalyzer {
                         fragment1Worker,
                         fragment2Worker,
                         baseTableTransfer,
-                        executable
+                        executable,
+                        shippingEnabled
                 );
 
         return new CutCandidate(
@@ -156,8 +160,27 @@ public class FragmentLocalityAnalyzer {
             String fragment1Worker,
             Set<String> fragment2Tables,
             String fragment2Worker,
-            TableDistribution distribution
+            TableDistribution distribution,
+            boolean shippingEnabled
     ) {
+        if (!allTablesHaveHome(
+                fragment1Tables,
+                distribution
+        )) {
+            return false;
+        }
+
+        if (!allTablesHaveHome(
+                fragment2Tables,
+                distribution
+        )) {
+            return false;
+        }
+
+        if (shippingEnabled) {
+            return true;
+        }
+
         if (!distribution.isFullyLocal(
                 fragment1Tables,
                 fragment1Worker
@@ -173,6 +196,19 @@ public class FragmentLocalityAnalyzer {
                 fragment2Tables,
                 fragment2Worker
         );
+    }
+
+    private static boolean allTablesHaveHome(
+            Set<String> tables,
+            TableDistribution distribution
+    ) {
+        for (String table : tables) {
+            if (distribution.workerFor(table) == null) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static double remoteTableTransferCost(
@@ -210,10 +246,15 @@ public class FragmentLocalityAnalyzer {
             String fragment1Worker,
             String fragment2Worker,
             double baseTableTransfer,
-            boolean executable
+            boolean executable,
+            boolean shippingEnabled
     ) {
         if (!executable) {
             return "INFEASIBLE";
+        }
+
+        if (baseTableTransfer > 0 && shippingEnabled) {
+            return "SHIPPING_REQUIRED";
         }
 
         if (distribution.spansWorkers(
@@ -264,6 +305,14 @@ public class FragmentLocalityAnalyzer {
             TableDistribution distribution,
             List<WorkerNode> workers
     ) {
+        boolean shippingEnabled =
+                ResearchSettings.shippingEnabled();
+
+        System.out.println(
+                "\nShipping enabled = "
+                        + shippingEnabled
+        );
+
         return bases.stream()
                 .map(base -> {
                     RelNode cutNode =
@@ -284,7 +333,8 @@ public class FragmentLocalityAnalyzer {
                             cutNode,
                             base,
                             distribution,
-                            workers
+                            workers,
+                            shippingEnabled
                     );
                 })
                 .toList();

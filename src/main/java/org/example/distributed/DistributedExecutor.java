@@ -1,13 +1,15 @@
 package org.example.distributed;
 
+import org.example.exec.ExecutionMetrics;
+import org.example.plan.CutCandidate;
 import org.example.sql.FragmentSql;
 
 public class DistributedExecutor {
 
-    public long execute(
+    public ExecutionMetrics execute(
             FragmentSql sql,
-            String fragment1WorkerName,
-            String fragment2WorkerName
+            CutCandidate cut,
+            TableDistribution distribution
     ) throws Exception {
 
         System.out.println(
@@ -16,12 +18,35 @@ public class DistributedExecutor {
 
         WorkerNode worker1 =
                 WorkerRegistry.byName(
-                        fragment1WorkerName
+                        cut.fragment1Worker()
                 );
 
         WorkerNode worker2 =
                 WorkerRegistry.byName(
-                        fragment2WorkerName
+                        cut.fragment2Worker()
+                );
+
+        IntermediateTableCleaner.dropIfExists(
+                worker1,
+                sql.tempTableName()
+        );
+
+        if (!cut.fragment1Worker().equals(
+                cut.fragment2Worker()
+        )) {
+            IntermediateTableCleaner.dropIfExists(
+                    worker2,
+                    sql.tempTableName()
+            );
+        }
+
+        BaseTableShipper shipper =
+                new BaseTableShipper();
+
+        long baseTableShipTime =
+                shipper.shipBeforeExecution(
+                        cut,
+                        distribution
                 );
 
         WorkerExecutor executor =
@@ -36,15 +61,19 @@ public class DistributedExecutor {
         );
 
         long fragment1Time =
-                executor.executeUpdate(
+                executor.executeDrop(
                         worker1,
-                        sql.sql1()
+                        sql.dropSql()
+                )
+                        + executor.executeCreate(
+                        worker1,
+                        sql.createSql()
                 );
 
-        long transferTime = 0;
+        long intermediateTransferTime = 0;
 
-        if (!fragment1WorkerName.equals(
-                fragment2WorkerName
+        if (!cut.fragment1Worker().equals(
+                cut.fragment2Worker()
         )) {
             System.out.println(
                     "\nTransfer INTERMEDIATE "
@@ -56,7 +85,7 @@ public class DistributedExecutor {
             TransferManager transferManager =
                     new TransferManager();
 
-            transferTime =
+            intermediateTransferTime =
                     transferManager.transfer(
                             worker1,
                             worker2,
@@ -65,7 +94,7 @@ public class DistributedExecutor {
         }
         else {
             System.out.println(
-                    "\nNo transfer needed (both fragments on "
+                    "\nNo intermediate transfer (both fragments on "
                             + worker1.name()
                             + ")"
             );
@@ -85,39 +114,72 @@ public class DistributedExecutor {
                         sql.sql2()
                 );
 
-        long total =
-                fragment1Time
-                        + transferTime
-                        + fragment2Time;
+        ExecutionMetrics metrics =
+                new ExecutionMetrics(
+                        fragment1Time,
+                        baseTableShipTime,
+                        intermediateTransferTime,
+                        fragment2Time
+                );
 
+        printMetrics(metrics);
+
+        return metrics;
+    }
+
+    private static void printMetrics(
+            ExecutionMetrics metrics
+    ) {
         System.out.println(
                 "\n===== EXECUTION METRICS ====="
         );
 
         System.out.println(
-                "Fragment1 Time = "
-                        + fragment1Time
+                "Fragment1 Time       = "
+                        + metrics.fragment1TimeMs()
                         + " ms"
         );
 
         System.out.println(
-                "Transfer Time  = "
-                        + transferTime
+                "Base Table Ship Time = "
+                        + metrics.baseTableShipTimeMs()
                         + " ms"
         );
 
         System.out.println(
-                "Fragment2 Time = "
-                        + fragment2Time
+                "Intermediate Transfer= "
+                        + metrics.intermediateTransferTimeMs()
                         + " ms"
         );
 
         System.out.println(
-                "Total Time     = "
-                        + total
+                "Fragment2 Time       = "
+                        + metrics.fragment2TimeMs()
                         + " ms"
         );
 
-        return total;
+        System.out.println(
+                "Runtime (F1+F2)      = "
+                        + metrics.runtimeMs()
+                        + " ms"
+        );
+
+        System.out.println(
+                "Total Transfer       = "
+                        + metrics.transferTimeMs()
+                        + " ms"
+        );
+
+        System.out.println(
+                "Total Time           = "
+                        + metrics.totalTimeMs()
+                        + " ms"
+        );
+
+        System.out.println(
+                "Reward input         = "
+                        + -(metrics.runtimeMs()
+                        + metrics.transferTimeMs())
+        );
     }
 }

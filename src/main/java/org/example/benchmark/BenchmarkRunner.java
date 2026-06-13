@@ -1,95 +1,103 @@
 package org.example.benchmark;
 
+import org.example.exec.ExecutionMetrics;
 import org.example.plan.CutCandidate;
 import org.example.rl.Action;
+import org.example.rl.DeepJoinBaselinePolicy;
+import org.example.rl.Policy;
 
 import java.util.List;
+import java.util.Map;
 
 public class BenchmarkRunner {
 
-    public static BenchmarkResult runBaseline(
+    public static BenchmarkResult fromExecutionMetrics(
+            String policyName,
+            ExecutionMetrics metrics
+    ) {
+        return new BenchmarkResult(
+                policyName,
+                metrics.runtimeMs()
+                        + metrics.transferTimeMs(),
+                metrics.runtimeMs(),
+                metrics.transferTimeMs(),
+                metrics.totalTimeMs(),
+                metrics.baseTableShipTimeMs(),
+                metrics.intermediateTransferTimeMs()
+        );
+    }
+
+    public static BenchmarkResult runDeepJoinBaseline(
             List<CutCandidate> candidates,
-            List<org.apache.calcite.rel.RelNode> cutPoints) {
+            List<org.apache.calcite.rel.RelNode> cutPoints,
+            Map<Integer, ExecutionMetrics> metricsByCutNodeId
+    ) {
+        Policy policy =
+                new DeepJoinBaselinePolicy();
 
         Action action =
-                firstExecutableAction(
-                        candidates,
-                        cutPoints
-                );
+                policy.choose(cutPoints);
 
-        double totalTransfer = 0;
-
-        for (int i = 0; i < 100; i++) {
-            CutCandidate chosen =
-                    findCandidate(
-                            candidates,
-                            action.cutNodeId()
-                    );
-
-            totalTransfer +=
-                    chosen.totalTransferCost();
-        }
-
-        return new BenchmarkResult(
-                "Baseline",
-                totalTransfer / 100.0
+        return metricsForAction(
+                "DeepJoinBaseline",
+                action,
+                candidates,
+                metricsByCutNodeId
         );
-    }
-
-    private static Action firstExecutableAction(
-            List<CutCandidate> candidates,
-            List<org.apache.calcite.rel.RelNode> cutPoints
-    ) {
-        for (org.apache.calcite.rel.RelNode node : cutPoints) {
-            CutCandidate candidate =
-                    findCandidate(
-                            candidates,
-                            node.getId()
-                    );
-
-            if (candidate.executable()) {
-                return new Action(
-                        candidate.nodeId()
-                );
-            }
-        }
-
-        throw new IllegalStateException(
-                "No executable cut point found"
-        );
-    }
-
-    private static CutCandidate findCandidate(
-            List<CutCandidate> candidates,
-            int nodeId) {
-
-        return candidates.stream()
-                .filter(c -> c.nodeId() == nodeId)
-                .findFirst()
-                .orElseThrow();
     }
 
     public static BenchmarkResult runQLearning(
+            Action learnedAction,
             List<CutCandidate> candidates,
-            Action learnedAction) {
+            Map<Integer, ExecutionMetrics> metricsByCutNodeId
+    ) {
+        return metricsForAction(
+                "QLearning",
+                learnedAction,
+                candidates,
+                metricsByCutNodeId
+        );
+    }
 
-        double totalTransfer = 0;
+    private static BenchmarkResult metricsForAction(
+            String name,
+            Action action,
+            List<CutCandidate> candidates,
+            Map<Integer, ExecutionMetrics> metricsByCutNodeId
+    ) {
+        CutCandidate cut =
+                candidates.stream()
+                        .filter(c ->
+                                c.nodeId()
+                                        == action.cutNodeId()
+                        )
+                        .findFirst()
+                        .orElseThrow();
 
-        for (int i = 0; i < 100; i++) {
-
-            CutCandidate chosen =
-                    findCandidate(
-                            candidates,
-                            learnedAction.cutNodeId()
-                    );
-
-            totalTransfer +=
-                    chosen.totalTransferCost();
+        if (!cut.executable()) {
+            throw new IllegalStateException(
+                    "Cut "
+                            + action.cutNodeId()
+                            + " is not executable for "
+                            + name
+            );
         }
 
-        return new BenchmarkResult(
-                "QLearning",
-                totalTransfer / 100.0
+        ExecutionMetrics metrics =
+                metricsByCutNodeId.get(
+                        action.cutNodeId()
+                );
+
+        if (metrics == null) {
+            throw new IllegalStateException(
+                    "No execution metrics for cut "
+                            + action.cutNodeId()
+            );
+        }
+
+        return fromExecutionMetrics(
+                name,
+                metrics
         );
     }
 }
