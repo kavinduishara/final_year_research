@@ -42,7 +42,7 @@ public final class WorkloadTrainer {
 
         CutPolicyEngine policyEngine =
                 CutPolicyEngine.loadForTraining(
-                        ResearchSettings.resumeQTable()
+                        ResearchSettings.resumeBanditModel()
                 );
 
         List<WorkloadTrainRow> rows =
@@ -69,7 +69,7 @@ public final class WorkloadTrainer {
 
         System.out.println(
                 "Resume existing    = "
-                        + ResearchSettings.resumeQTable()
+                        + ResearchSettings.resumeBanditModel()
         );
 
         System.out.println(
@@ -209,11 +209,7 @@ public final class WorkloadTrainer {
     private static int modelSize(
             CutPolicyEngine policyEngine
     ) {
-        if (policyEngine.bandit() != null) {
-            return policyEngine.bandit().observations();
-        }
-
-        return policyEngine.qTable().entries().size();
+        return policyEngine.bandit().observations();
     }
 
     private static void printSummary(

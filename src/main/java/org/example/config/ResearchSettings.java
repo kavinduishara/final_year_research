@@ -58,9 +58,9 @@ public class ResearchSettings {
                 || "workload_train".equalsIgnoreCase(mode);
     }
 
-    public static boolean resumeQTable() {
+    public static boolean resumeBanditModel() {
         return getBoolean(
-                "training.qtable.resume",
+                "training.bandit.resume",
                 false
         );
     }
@@ -74,44 +74,6 @@ public class ResearchSettings {
         catch (Exception e) {
             return "train";
         }
-    }
-
-    public static String qTablePath() {
-        try {
-            return CONFIG.get("training.qtable.path")
-                    .trim();
-        }
-        catch (Exception e) {
-            return "qtable.json";
-        }
-    }
-
-    /**
-     * qtable = tabular Q-learning (default)
-     * linucb = contextual bandit with LinUCB
-     * thompson = contextual bandit with Thompson sampling
-     */
-    public static String learningAlgorithm() {
-        try {
-            return CONFIG.get("learning.algorithm")
-                    .trim()
-                    .toLowerCase();
-        }
-        catch (Exception e) {
-            return "qtable";
-        }
-    }
-
-    public static boolean usesBandit() {
-        String algorithm = learningAlgorithm();
-        return "linucb".equals(algorithm)
-                || "thompson".equals(algorithm)
-                || "ts".equals(algorithm);
-    }
-
-    public static org.example.rl.bandit.BanditAlgorithm banditAlgorithm() {
-        return org.example.rl.bandit.BanditAlgorithm
-                .fromConfig(learningAlgorithm());
     }
 
     public static String banditPath() {

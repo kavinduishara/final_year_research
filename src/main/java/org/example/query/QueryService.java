@@ -255,8 +255,8 @@ public final class QueryService {
                         metricsByCut
                 );
 
-        BenchmarkResult rl =
-                BenchmarkRunner.runQLearning(
+        BenchmarkResult learned =
+                BenchmarkRunner.runLearnedPolicy(
                         selection.action(),
                         prepared.candidates(),
                         metricsByCut
@@ -264,10 +264,10 @@ public final class QueryService {
 
         printPolicyComparison(
                 baseline,
-                rl
+                learned
         );
 
-        ExecutionMetrics rlMetrics =
+        ExecutionMetrics learnedMetrics =
                 metricsByCut.get(
                         selection.action().cutNodeId()
                 );
@@ -277,10 +277,10 @@ public final class QueryService {
                         sql,
                         selection.candidate().nodeId(),
                         selection.reason(),
-                        selection.bestQ(),
+                        selection.bestScore(),
                         List.of(),
                         List.of(),
-                        rlMetrics
+                        learnedMetrics
                 );
 
         result.printSummary();
@@ -304,7 +304,7 @@ public final class QueryService {
                 sql,
                 selection.candidate().nodeId(),
                 selection.reason(),
-                selection.bestQ(),
+                selection.bestScore(),
                 execution.columnNames(),
                 execution.rows(),
                 execution.metrics()
@@ -334,16 +334,12 @@ public final class QueryService {
         );
 
         if (selection.reason()
-                == CutSelection.SelectionReason.RL
-                || selection.reason()
-                == CutSelection.SelectionReason.BANDIT_LINUCB
-                || selection.reason()
-                == CutSelection.SelectionReason.BANDIT_THOMPSON
+                == CutSelection.SelectionReason.LINUCB
                 || selection.reason()
                 == CutSelection.SelectionReason.EXECUTION_BEST) {
             System.out.println(
                     "Best score = "
-                            + selection.bestQ()
+                            + selection.bestScore()
             );
         }
     }
@@ -373,7 +369,7 @@ public final class QueryService {
 
     private static void printPolicyComparison(
             BenchmarkResult baseline,
-            BenchmarkResult rl
+            BenchmarkResult learned
     ) {
         System.out.println(
                 "\n===== POLICY COMPARISON ====="
@@ -383,7 +379,7 @@ public final class QueryService {
                 baseline.totalTimeMs() == 0
                         ? 0
                         : ((baseline.totalTimeMs()
-                        - rl.totalTimeMs())
+                        - learned.totalTimeMs())
                         / (double) baseline.totalTimeMs())
                         * 100.0;
 
@@ -394,8 +390,8 @@ public final class QueryService {
         );
 
         System.out.println(
-                "RL total       = "
-                        + rl.totalTimeMs()
+                "LinUCB total   = "
+                        + learned.totalTimeMs()
                         + " ms"
         );
 

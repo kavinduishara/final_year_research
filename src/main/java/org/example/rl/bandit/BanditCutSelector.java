@@ -33,26 +33,15 @@ public final class BanditCutSelector {
             return fallbackCheapest(executable);
         }
 
-        return chooseWithBandit(
-                executable,
-                bandit
-        );
-    }
-
-    static CutSelection chooseWithBandit(
-            List<CutCandidate> executable,
-            ContextualBandit bandit
-    ) {
         CutCandidate bestCandidate = null;
         double bestScore =
                 Double.NEGATIVE_INFINITY;
 
         for (CutCandidate candidate : executable) {
-            double[] features =
-                    CutFeatures.from(candidate);
-
             double score =
-                    bandit.score(features);
+                    bandit.score(
+                            CutFeatures.from(candidate)
+                    );
 
             if (score > bestScore
                     || (score == bestScore
@@ -65,20 +54,12 @@ public final class BanditCutSelector {
             }
         }
 
-        CutSelection.SelectionReason reason =
-                bandit.algorithm()
-                        == BanditAlgorithm.THOMPSON
-                        ? CutSelection.SelectionReason
-                        .BANDIT_THOMPSON
-                        : CutSelection.SelectionReason
-                        .BANDIT_LINUCB;
-
         return new CutSelection(
                 new Action(
                         bestCandidate.nodeId()
                 ),
                 bestCandidate,
-                reason,
+                CutSelection.SelectionReason.LINUCB,
                 bestScore
         );
     }

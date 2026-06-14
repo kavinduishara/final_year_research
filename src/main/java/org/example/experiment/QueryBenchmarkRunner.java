@@ -28,9 +28,9 @@ public class QueryBenchmarkRunner {
             int queryNumber,
             String queryName,
             int baselineCutNode,
-            int rlCutNode,
+            int learnedCutNode,
             long baselineTotalMs,
-            long rlTotalMs,
+            long learnedTotalMs,
             double improvementPercent,
             boolean sameCut
     ) {
@@ -181,7 +181,7 @@ public class QueryBenchmarkRunner {
                             training.metricsByCutNodeId()
                     );
 
-            Action rlAction =
+            Action learnedAction =
                     learnedSelection.action();
 
             Action baselineAction =
@@ -197,9 +197,9 @@ public class QueryBenchmarkRunner {
                             training.metricsByCutNodeId()
                     );
 
-            BenchmarkResult rl =
-                    BenchmarkRunner.runQLearning(
-                            rlAction,
+            BenchmarkResult learned =
+                    BenchmarkRunner.runLearnedPolicy(
+                            learnedAction,
                             candidates,
                             training.metricsByCutNodeId()
                     );
@@ -208,22 +208,22 @@ public class QueryBenchmarkRunner {
                     baseline.totalTimeMs() == 0
                             ? 0
                             : ((baseline.totalTimeMs()
-                            - rl.totalTimeMs())
+                            - learned.totalTimeMs())
                             / (double) baseline.totalTimeMs())
                             * 100.0;
 
             boolean sameCut =
                     baselineAction.cutNodeId()
-                            == rlAction.cutNodeId();
+                            == learnedAction.cutNodeId();
 
             QueryBenchmarkRow row =
                     new QueryBenchmarkRow(
                             queryNumber,
                             query.name(),
                             baselineAction.cutNodeId(),
-                            rlAction.cutNodeId(),
+                            learnedAction.cutNodeId(),
                             baseline.totalTimeMs(),
-                            rl.totalTimeMs(),
+                            learned.totalTimeMs(),
                             improvement,
                             sameCut
                     );
@@ -233,10 +233,10 @@ public class QueryBenchmarkRunner {
             printQueryResult(
                     row,
                     baseline,
-                    rl,
+                    learned,
                     candidates,
                     baselineAction,
-                    rlAction,
+                    learnedAction,
                     learnedSelection.reason()
             );
         }
@@ -254,7 +254,7 @@ public class QueryBenchmarkRunner {
             BenchmarkResult rl,
             List<CutCandidate> candidates,
             Action baselineAction,
-            Action rlAction,
+            Action learnedAction,
             CutSelection.SelectionReason learnedReason
     ) {
         System.out.println(
@@ -273,10 +273,10 @@ public class QueryBenchmarkRunner {
         );
 
         System.out.println(
-                "RL cut node       = "
-                        + row.rlCutNode()
+                "LinUCB cut node   = "
+                        + row.learnedCutNode()
                         + ", total = "
-                        + row.rlTotalMs()
+                        + row.learnedTotalMs()
                         + " ms"
         );
 
@@ -303,7 +303,7 @@ public class QueryBenchmarkRunner {
             printCutDecisionHint(
                     candidates,
                     baselineAction,
-                    rlAction
+                    learnedAction
             );
         }
         else if (row.improvementPercent() < 0) {
@@ -317,7 +317,7 @@ public class QueryBenchmarkRunner {
     private static void printCutDecisionHint(
             List<CutCandidate> candidates,
             Action baselineAction,
-            Action rlAction
+            Action learnedAction
     ) {
         CutCandidate baselineCut =
                 findCandidate(
@@ -328,15 +328,15 @@ public class QueryBenchmarkRunner {
         CutCandidate rlCut =
                 findCandidate(
                         candidates,
-                        rlAction.cutNodeId()
+                        learnedAction.cutNodeId()
                 );
 
         System.out.println(
                 "Note: baseline est. cost = "
                         + (long) baselineCut.baselineDecisionCost()
-                        + ", RL cut est. cost = "
+                        + ", learned cut est. cost = "
                         + (long) rlCut.baselineDecisionCost()
-                        + " — RL chose better after execution."
+                        + " — LinUCB chose better after execution."
         );
     }
 
@@ -364,14 +364,14 @@ public class QueryBenchmarkRunner {
                 "#",
                 "Query",
                 "BaseCut",
-                "RLCut",
+                "LearnedCut",
                 "BaseMs",
-                "RLMs",
+                "LearnedMs",
                 "Improve%"
         );
 
         double totalBaseline = 0;
-        double totalRl = 0;
+        double totalLearned = 0;
 
         for (QueryBenchmarkRow row : rows) {
             System.out.printf(
@@ -379,20 +379,20 @@ public class QueryBenchmarkRunner {
                     row.queryNumber(),
                     row.queryName(),
                     row.baselineCutNode(),
-                    row.rlCutNode(),
+                    row.learnedCutNode(),
                     row.baselineTotalMs(),
-                    row.rlTotalMs(),
+                    row.learnedTotalMs(),
                     row.improvementPercent()
             );
 
             totalBaseline += row.baselineTotalMs();
-            totalRl += row.rlTotalMs();
+            totalLearned += row.learnedTotalMs();
         }
 
         double overall =
                 totalBaseline == 0
                         ? 0
-                        : ((totalBaseline - totalRl)
+                        : ((totalBaseline - totalLearned)
                         / totalBaseline)
                         * 100.0;
 
@@ -412,8 +412,8 @@ public class QueryBenchmarkRunner {
         );
 
         System.out.println(
-                "Total RL time       = "
-                        + (long) totalRl
+                "Total LinUCB time   = "
+                        + (long) totalLearned
                         + " ms"
         );
     }

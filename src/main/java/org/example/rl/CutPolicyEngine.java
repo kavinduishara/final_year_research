@@ -8,118 +8,53 @@ import org.example.rl.bandit.BanditStore;
 import org.example.rl.bandit.ContextualBandit;
 import org.example.rl.bandit.CutFeatures;
 
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Unified cut-selection + learning facade for Q-table or contextual bandit.
+ * LinUCB cut-selection and training facade.
  */
 public final class CutPolicyEngine {
 
-    private final QTable qTable;
     private final ContextualBandit bandit;
 
-    private CutPolicyEngine(
-            QTable qTable,
-            ContextualBandit bandit
-    ) {
-        this.qTable = qTable;
+    private CutPolicyEngine(ContextualBandit bandit) {
         this.bandit = bandit;
     }
 
-    public static CutPolicyEngine fromQTable(QTable qTable) {
-        return new CutPolicyEngine(
-                qTable,
-                null
-        );
-    }
-
     public static CutPolicyEngine createFresh() {
-        if (ResearchSettings.usesBandit()) {
-            return new CutPolicyEngine(
-                    null,
-                    new ContextualBandit(
-                            ResearchSettings.banditAlgorithm(),
-                            ResearchSettings.banditAlpha(),
-                            ResearchSettings.banditRidge()
-                    )
-            );
-        }
-
         return new CutPolicyEngine(
-                new QTable(),
-                null
+                new ContextualBandit(
+                        ResearchSettings.banditAlpha(),
+                        ResearchSettings.banditRidge()
+                )
         );
     }
 
     public static CutPolicyEngine loadForInference()
             throws Exception {
-
-        if (ResearchSettings.usesBandit()) {
-            return new CutPolicyEngine(
-                    null,
-                    BanditStore.load(
-                            ResearchSettings.banditPath()
-                    )
-            );
-        }
-
         return new CutPolicyEngine(
-                QTableStore.load(
-                        ResearchSettings.qTablePath()
-                ),
-                null
+                BanditStore.load(
+                        ResearchSettings.banditPath()
+                )
         );
     }
 
     public static CutPolicyEngine loadForTraining(
             boolean resume
     ) throws Exception {
-
-        if (ResearchSettings.usesBandit()) {
-            return new CutPolicyEngine(
-                    null,
-                    BanditStore.loadOrCreate(resume)
-            );
-        }
-
-        if (resume) {
-            File file =
-                    new File(
-                            ResearchSettings.qTablePath()
-                    );
-
-            if (file.exists()) {
-                return new CutPolicyEngine(
-                        QTableStore.load(
-                                ResearchSettings.qTablePath()
-                        ),
-                        null
-                );
-            }
-        }
-
-        return createFresh();
+        return new CutPolicyEngine(
+                BanditStore.loadOrCreate(resume)
+        );
     }
 
     public void observe(
             CutCandidate candidate,
             double reward
     ) {
-        if (bandit != null) {
-            bandit.update(
-                    CutFeatures.from(candidate),
-                    reward / 1000.0
-            );
-            return;
-        }
-
-        qTable.update(
-                QLearningPolicy.stateKey(
-                        StateBuilder.from(candidate)
-                ),
-                reward
+        bandit.update(
+                CutFeatures.from(candidate),
+                reward / 1000.0
         );
     }
 
@@ -151,63 +86,35 @@ public final class CutPolicyEngine {
             }
         }
 
-        if (bandit != null) {
-            return BanditCutSelector.choose(
-                    candidates,
-                    bandit
-            );
-        }
-
-        return CutSelector.choose(
+        return BanditCutSelector.choose(
                 candidates,
-                qTable
+                bandit
         );
     }
 
     public void save() throws Exception {
-        if (bandit != null) {
-            BanditStore.save(
-                    bandit,
-                    ResearchSettings.banditPath()
-            );
-            return;
-        }
-
-        QTableStore.save(
-                qTable,
-                ResearchSettings.qTablePath()
+        BanditStore.save(
+                bandit,
+                ResearchSettings.banditPath()
         );
     }
 
     public void print() {
-        if (bandit != null) {
-            System.out.println(
-                    "\n===== CONTEXTUAL BANDIT ====="
-            );
-            System.out.println(
-                    "Algorithm     = "
-                            + bandit.algorithm()
-            );
-            System.out.println(
-                    "Observations  = "
-                            + bandit.observations()
-            );
-            System.out.println(
-                    "Alpha         = "
-                            + bandit.alpha()
-            );
-            System.out.println(
-                    "Ridge         = "
-                            + bandit.ridge()
-            );
-            return;
-        }
-
-        qTable.print();
-    }
-
-    public QTable qTable() {
-        return qTable;
+        System.out.println(
+                "\n===== LINUCB MODEL ====="
+        );
+        System.out.println(
+                "Observations = "
+                        + bandit.observations()
+        );
+        System.out.println(
+                "Alpha        = "
+                        + bandit.alpha()
+        );
+        System.out.println(
+                "Ridge        = "
+                        + bandit.ridge()
+        );
     }
 
     public ContextualBandit bandit() {
@@ -215,9 +122,6 @@ public final class CutPolicyEngine {
     }
 
     public String algorithmLabel() {
-        if (bandit != null) {
-            return bandit.algorithm().name();
-        }
-        return "Q-TABLE";
+        return "LINUCB";
     }
 }

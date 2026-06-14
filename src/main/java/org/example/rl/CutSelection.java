@@ -6,12 +6,10 @@ public record CutSelection(
         Action action,
         CutCandidate candidate,
         SelectionReason reason,
-        double bestQ
+        double bestScore
 ) {
     public enum SelectionReason {
-        RL,
-        BANDIT_LINUCB,
-        BANDIT_THOMPSON,
+        LINUCB,
         EXECUTION_BEST,
         FALLBACK_CHEAPEST_TRANSFER
     }

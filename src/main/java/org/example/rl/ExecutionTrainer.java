@@ -20,9 +20,6 @@ public class ExecutionTrainer {
             CutPolicyEngine policyEngine,
             Map<Integer, ExecutionMetrics> metricsByCutNodeId
     ) {
-        public QTable qTable() {
-            return policyEngine.qTable();
-        }
     }
 
     public static TrainingResult train(

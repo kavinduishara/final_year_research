@@ -45,27 +45,13 @@ public class BenchmarkRunner {
         );
     }
 
-    /** @deprecated use {@link #runBaseline} */
-    @Deprecated
-    public static BenchmarkResult runDeepJoinBaseline(
-            List<CutCandidate> candidates,
-            List<org.apache.calcite.rel.RelNode> cutPoints,
-            Map<Integer, ExecutionMetrics> metricsByCutNodeId
-    ) {
-        return runBaseline(
-                candidates,
-                cutPoints,
-                metricsByCutNodeId
-        );
-    }
-
-    public static BenchmarkResult runQLearning(
+    public static BenchmarkResult runLearnedPolicy(
             Action learnedAction,
             List<CutCandidate> candidates,
             Map<Integer, ExecutionMetrics> metricsByCutNodeId
     ) {
         return metricsForAction(
-                "QLearning",
+                "LinUCB",
                 learnedAction,
                 candidates,
                 metricsByCutNodeId

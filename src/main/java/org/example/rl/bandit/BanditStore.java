@@ -32,9 +32,7 @@ public final class BanditStore {
     ) throws Exception {
         BanditSnapshot snapshot =
                 new BanditSnapshot(
-                        bandit.algorithm()
-                                .name()
-                                .toLowerCase(),
+                        "linucb",
                         bandit.alpha(),
                         bandit.ridge(),
                         CutFeatures.DIMENSION,
@@ -50,13 +48,11 @@ public final class BanditStore {
                 );
 
         System.out.println(
-                "Saved contextual bandit to "
+                "Saved LinUCB model to "
                         + path
                         + " ("
                         + bandit.observations()
-                        + " observations, "
-                        + bandit.algorithm()
-                        + ")"
+                        + " observations)"
         );
     }
 
@@ -69,8 +65,7 @@ public final class BanditStore {
             throw new IllegalStateException(
                     "Bandit model file not found: "
                             + path
-                            + ". Run training with "
-                            + "learning.algorithm=linucb first."
+                            + ". Run training first."
             );
         }
 
@@ -80,14 +75,8 @@ public final class BanditStore {
                         BanditSnapshot.class
                 );
 
-        BanditAlgorithm algorithm =
-                BanditAlgorithm.fromConfig(
-                        snapshot.algorithm()
-                );
-
         ContextualBandit bandit =
                 ContextualBandit.restore(
-                        algorithm,
                         snapshot.alpha(),
                         snapshot.ridge(),
                         snapshot.a(),
@@ -96,13 +85,11 @@ public final class BanditStore {
                 );
 
         System.out.println(
-                "Loaded contextual bandit from "
+                "Loaded LinUCB model from "
                         + path
                         + " ("
                         + snapshot.observations()
-                        + " observations, "
-                        + algorithm
-                        + ")"
+                        + " observations)"
         );
 
         return bandit;
@@ -121,7 +108,6 @@ public final class BanditStore {
         }
 
         return new ContextualBandit(
-                ResearchSettings.banditAlgorithm(),
                 ResearchSettings.banditAlpha(),
                 ResearchSettings.banditRidge()
         );

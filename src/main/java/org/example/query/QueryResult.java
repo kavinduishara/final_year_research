@@ -9,7 +9,7 @@ public record QueryResult(
         String sql,
         int chosenCutNodeId,
         CutSelection.SelectionReason selectionReason,
-        double bestQ,
+        double bestScore,
         List<String> columnNames,
         List<List<Object>> rows,
         ExecutionMetrics metrics
@@ -32,10 +32,12 @@ public record QueryResult(
         );
 
         if (selectionReason
-                == CutSelection.SelectionReason.RL) {
+                == CutSelection.SelectionReason.LINUCB
+                || selectionReason
+                == CutSelection.SelectionReason.EXECUTION_BEST) {
             System.out.println(
-                    "Best Q          = "
-                            + bestQ
+                    "Best score      = "
+                            + bestScore
             );
         }
 
