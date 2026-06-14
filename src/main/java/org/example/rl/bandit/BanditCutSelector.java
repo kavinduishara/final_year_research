@@ -1,18 +1,21 @@
-package org.example.rl;
+package org.example.rl.bandit;
 
+import org.example.config.ResearchSettings;
 import org.example.plan.CutCandidate;
+import org.example.rl.Action;
+import org.example.rl.CutSelection;
 
 import java.util.Comparator;
 import java.util.List;
 
-public final class CutSelector {
+public final class BanditCutSelector {
 
-    private CutSelector() {
+    private BanditCutSelector() {
     }
 
     public static CutSelection choose(
             List<CutCandidate> candidates,
-            QTable qTable
+            ContextualBandit bandit
     ) {
         List<CutCandidate> executable =
                 candidates.stream()
@@ -25,54 +28,58 @@ public final class CutSelector {
             );
         }
 
-        boolean anyKnown =
-                executable.stream()
-                        .anyMatch(candidate ->
-                                qTable.contains(
-                                        stateKeyFor(
-                                                candidate
-                                        )
-                                )
-                        );
-
-        if (!anyKnown) {
+        if (bandit.observations()
+                < ResearchSettings.banditMinObservations()) {
             return fallbackCheapest(executable);
         }
 
+        return chooseWithBandit(
+                executable,
+                bandit
+        );
+    }
+
+    static CutSelection chooseWithBandit(
+            List<CutCandidate> executable,
+            ContextualBandit bandit
+    ) {
         CutCandidate bestCandidate = null;
-        double bestQ =
+        double bestScore =
                 Double.NEGATIVE_INFINITY;
 
         for (CutCandidate candidate : executable) {
+            double[] features =
+                    CutFeatures.from(candidate);
 
-            String key =
-                    stateKeyFor(candidate);
+            double score =
+                    bandit.score(features);
 
-            if (!qTable.contains(key)) {
-                continue;
-            }
-
-            double q =
-                    qTable.get(key);
-
-            if (q > bestQ
-                    || (q == bestQ
+            if (score > bestScore
+                    || (score == bestScore
                     && bestCandidate != null
                     && candidate.totalTransferCost()
                     < bestCandidate.totalTransferCost())) {
 
-                bestQ = q;
+                bestScore = score;
                 bestCandidate = candidate;
             }
         }
+
+        CutSelection.SelectionReason reason =
+                bandit.algorithm()
+                        == BanditAlgorithm.THOMPSON
+                        ? CutSelection.SelectionReason
+                        .BANDIT_THOMPSON
+                        : CutSelection.SelectionReason
+                        .BANDIT_LINUCB;
 
         return new CutSelection(
                 new Action(
                         bestCandidate.nodeId()
                 ),
                 bestCandidate,
-                CutSelection.SelectionReason.RL,
-                bestQ
+                reason,
+                bestScore
         );
     }
 
@@ -99,14 +106,5 @@ public final class CutSelector {
                         .FALLBACK_CHEAPEST_TRANSFER,
                 0.0
         );
-    }
-
-    private static String stateKeyFor(
-            CutCandidate candidate
-    ) {
-        State state =
-                StateBuilder.from(candidate);
-
-        return QLearningPolicy.stateKey(state);
     }
 }

@@ -10,6 +10,9 @@ public record CutSelection(
 ) {
     public enum SelectionReason {
         RL,
+        BANDIT_LINUCB,
+        BANDIT_THOMPSON,
+        EXECUTION_BEST,
         FALLBACK_CHEAPEST_TRANSFER
     }
 }

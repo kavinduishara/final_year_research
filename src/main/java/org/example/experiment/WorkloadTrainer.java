@@ -11,11 +11,9 @@ import org.example.plan.CutCandidate;
 import org.example.plan.CutPointCollector;
 import org.example.plan.FragmentLocalityAnalyzer;
 import org.example.plan.PlanStatisticsCollector;
+import org.example.rl.CutPolicyEngine;
 import org.example.rl.ExecutionTrainer;
-import org.example.rl.QTable;
-import org.example.rl.QTableStore;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,7 +23,7 @@ public final class WorkloadTrainer {
             int queryNumber,
             String queryName,
             int executableCuts,
-            int qTableEntriesAfter
+            int modelSizeAfter
     ) {
     }
 
@@ -42,14 +40,16 @@ public final class WorkloadTrainer {
         List<ResearchQueryWorkload.ResearchQuery> queries =
                 ResearchQueryWorkload.all();
 
-        QTable qTable =
-                loadOrCreateQTable();
+        CutPolicyEngine policyEngine =
+                CutPolicyEngine.loadForTraining(
+                        ResearchSettings.resumeQTable()
+                );
 
         List<WorkloadTrainRow> rows =
                 new ArrayList<>();
 
         System.out.println(
-                "\n===== MULTI-QUERY RL TRAINING ====="
+                "\n===== MULTI-QUERY TRAINING ====="
         );
 
         System.out.println(
@@ -58,13 +58,13 @@ public final class WorkloadTrainer {
         );
 
         System.out.println(
-                "Episodes per query = "
-                        + ResearchSettings.trainingEpisodes()
+                "Algorithm          = "
+                        + policyEngine.algorithmLabel()
         );
 
         System.out.println(
-                "Q-table path       = "
-                        + ResearchSettings.qTablePath()
+                "Episodes per query = "
+                        + ResearchSettings.trainingEpisodes()
         );
 
         System.out.println(
@@ -73,8 +73,8 @@ public final class WorkloadTrainer {
         );
 
         System.out.println(
-                "Starting entries   = "
-                        + qTable.entries().size()
+                "Starting model size = "
+                        + modelSize(policyEngine)
         );
 
         System.out.flush();
@@ -170,7 +170,7 @@ public final class WorkloadTrainer {
                     ctx,
                     candidates,
                     session,
-                    qTable,
+                    policyEngine,
                     false
             );
 
@@ -179,58 +179,46 @@ public final class WorkloadTrainer {
                             queryNumber,
                             query.name(),
                             (int) executable,
-                            qTable.entries().size()
+                            modelSize(policyEngine)
                     );
 
             rows.add(row);
 
             System.out.println(
-                    "Q-table entries after query "
+                    "Model size after query "
                             + queryNumber
                             + " = "
-                            + row.qTableEntriesAfter()
+                            + row.modelSizeAfter()
             );
             System.out.flush();
         }
 
-        QTableStore.save(
-                qTable,
-                ResearchSettings.qTablePath()
-        );
+        policyEngine.save();
 
-        printSummary(rows, qTable);
+        printSummary(rows, policyEngine);
 
         System.out.println(
                 "\nMulti-query training complete. "
                         + "Set training.mode=inference to run queries "
-                        + "using the shared Q-table."
+                        + "using the trained model."
         );
 
         return rows;
     }
 
-    private static QTable loadOrCreateQTable() throws Exception {
-        if (!ResearchSettings.resumeQTable()) {
-            return new QTable();
+    private static int modelSize(
+            CutPolicyEngine policyEngine
+    ) {
+        if (policyEngine.bandit() != null) {
+            return policyEngine.bandit().observations();
         }
 
-        File file =
-                new File(
-                        ResearchSettings.qTablePath()
-                );
-
-        if (!file.exists()) {
-            return new QTable();
-        }
-
-        return QTableStore.load(
-                ResearchSettings.qTablePath()
-        );
+        return policyEngine.qTable().entries().size();
     }
 
     private static void printSummary(
             List<WorkloadTrainRow> rows,
-            QTable qTable
+            CutPolicyEngine policyEngine
     ) {
         System.out.println(
                 "\n===== WORKLOAD TRAINING SUMMARY ====="
@@ -241,7 +229,7 @@ public final class WorkloadTrainer {
                 "#",
                 "Query",
                 "Cuts",
-                "QEntries"
+                "ModelSize"
         );
 
         for (WorkloadTrainRow row : rows) {
@@ -250,15 +238,15 @@ public final class WorkloadTrainer {
                     row.queryNumber(),
                     row.queryName(),
                     row.executableCuts(),
-                    row.qTableEntriesAfter()
+                    row.modelSizeAfter()
             );
         }
 
         System.out.println(
-                "\nFinal Q-table entries = "
-                        + qTable.entries().size()
+                "\nFinal model size = "
+                        + modelSize(policyEngine)
         );
 
-        qTable.print();
+        policyEngine.print();
     }
 }

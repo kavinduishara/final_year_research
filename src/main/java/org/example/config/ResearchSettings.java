@@ -87,6 +87,69 @@ public class ResearchSettings {
     }
 
     /**
+     * qtable = tabular Q-learning (default)
+     * linucb = contextual bandit with LinUCB
+     * thompson = contextual bandit with Thompson sampling
+     */
+    public static String learningAlgorithm() {
+        try {
+            return CONFIG.get("learning.algorithm")
+                    .trim()
+                    .toLowerCase();
+        }
+        catch (Exception e) {
+            return "qtable";
+        }
+    }
+
+    public static boolean usesBandit() {
+        String algorithm = learningAlgorithm();
+        return "linucb".equals(algorithm)
+                || "thompson".equals(algorithm)
+                || "ts".equals(algorithm);
+    }
+
+    public static org.example.rl.bandit.BanditAlgorithm banditAlgorithm() {
+        return org.example.rl.bandit.BanditAlgorithm
+                .fromConfig(learningAlgorithm());
+    }
+
+    public static String banditPath() {
+        try {
+            return CONFIG.get("learning.bandit.path")
+                    .trim();
+        }
+        catch (Exception e) {
+            return "bandit.json";
+        }
+    }
+
+    public static double banditAlpha() {
+        return getDouble(
+                "learning.bandit.alpha",
+                0.5
+        );
+    }
+
+    public static double banditRidge() {
+        return getDouble(
+                "learning.bandit.ridge",
+                1.0
+        );
+    }
+
+    public static int banditMinObservations() {
+        return getInt(
+                "learning.bandit.min.observations",
+                1
+        );
+    }
+
+    public static boolean useExecutionBestAfterTraining() {
+        return !isInferenceMode();
+    }
+
+    /**
      * static-qos = min estimated transfer (default, realistic traditional baseline)
      * combined-estimate = calcite cost + weighted transfer
      * deep-join = deepest join cut (weak ablation baseline)
@@ -161,6 +224,20 @@ public class ResearchSettings {
     ) {
         try {
             return Integer.parseInt(
+                    CONFIG.get(key)
+            );
+        }
+        catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    private static double getDouble(
+            String key,
+            double defaultValue
+    ) {
+        try {
+            return Double.parseDouble(
                     CONFIG.get(key)
             );
         }

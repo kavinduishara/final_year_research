@@ -22,10 +22,9 @@ import org.example.plan.PlanStatisticsCollector;
 import org.example.rl.Action;
 import org.example.rl.BaselinePolicyFactory;
 import org.example.rl.CutSelection;
-import org.example.rl.CutSelector;
+import org.example.rl.CutPolicyEngine;
+import org.example.rl.CutSelection;
 import org.example.rl.ExecutionTrainer;
-import org.example.rl.QTable;
-import org.example.rl.QTableStore;
 
 import java.util.List;
 import java.util.Map;
@@ -169,19 +168,16 @@ public final class QueryService {
                 "\n===== INFERENCE MODE ====="
         );
 
-        QTable qTable =
-                QTableStore.load(
-                        ResearchSettings.qTablePath()
-                );
+        CutPolicyEngine policyEngine =
+                CutPolicyEngine.loadForInference();
 
         if (verbose) {
-            qTable.print();
+            policyEngine.print();
         }
 
         CutSelection selection =
-                CutSelector.choose(
-                        prepared.candidates(),
-                        qTable
+                policyEngine.choose(
+                        prepared.candidates()
                 );
 
         printSelection(selection);
@@ -228,17 +224,17 @@ public final class QueryService {
                         ExecutionSession.single()
                 );
 
-        QTable qTable =
-                training.qTable();
+        CutPolicyEngine policyEngine =
+                training.policyEngine();
 
         if (verbose) {
-            qTable.print();
+            policyEngine.print();
         }
 
         CutSelection selection =
-                CutSelector.choose(
+                policyEngine.choose(
                         prepared.candidates(),
-                        qTable
+                        training.metricsByCutNodeId()
                 );
 
         printSelection(selection);
@@ -290,9 +286,10 @@ public final class QueryService {
         result.printSummary();
 
         System.out.println(
-                "\nQ-table saved to "
-                        + ResearchSettings.qTablePath()
-                        + ". Use training.mode=inference for fast queries with results."
+                "\nModel saved ("
+                        + policyEngine.algorithmLabel()
+                        + "). Use training.mode=inference "
+                        + "for fast queries with results."
         );
 
         return result;
@@ -337,9 +334,15 @@ public final class QueryService {
         );
 
         if (selection.reason()
-                == CutSelection.SelectionReason.RL) {
+                == CutSelection.SelectionReason.RL
+                || selection.reason()
+                == CutSelection.SelectionReason.BANDIT_LINUCB
+                || selection.reason()
+                == CutSelection.SelectionReason.BANDIT_THOMPSON
+                || selection.reason()
+                == CutSelection.SelectionReason.EXECUTION_BEST) {
             System.out.println(
-                    "Best Q    = "
+                    "Best score = "
                             + selection.bestQ()
             );
         }

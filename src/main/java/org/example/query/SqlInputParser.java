@@ -98,10 +98,15 @@ public final class SqlInputParser {
                   --help, -h           Show this help
 
                 Modes (application.properties):
-                  training.mode=train            Train one query, save qtable.json
-                  training.mode=workload-train   Train all 10 workload queries into one qtable.json
-                  training.mode=inference        Load qtable, run one cut, return results
-                  training.mode=benchmark        Run 10 built-in queries (compare baseline vs RL)
+                  training.mode=train            Train one query
+                  training.mode=workload-train   Train all 10 workload queries
+                  training.mode=inference        Load model, pick best cut, run once
+                  training.mode=benchmark        Compare baseline vs learned policy
+
+                Learning algorithm (learning.algorithm):
+                  qtable     Tabular Q-learning -> qtable.json
+                  linucb     Contextual bandit LinUCB -> bandit.json
+                  thompson   Contextual bandit Thompson sampling -> bandit.json
 
                 Examples:
                   training.mode=train

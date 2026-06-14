@@ -17,9 +17,12 @@ import java.util.Map;
 public class ExecutionTrainer {
 
     public record TrainingResult(
-            QTable qTable,
+            CutPolicyEngine policyEngine,
             Map<Integer, ExecutionMetrics> metricsByCutNodeId
     ) {
+        public QTable qTable() {
+            return policyEngine.qTable();
+        }
     }
 
     public static TrainingResult train(
@@ -28,13 +31,12 @@ public class ExecutionTrainer {
             List<CutCandidate> candidates,
             ExecutionSession session
     ) throws Exception {
-        QTable qTable = new QTable();
         return train(
                 bestPlan,
                 ctx,
                 candidates,
                 session,
-                qTable,
+                CutPolicyEngine.createFresh(),
                 shouldPersistAfterTrain()
         );
     }
@@ -44,8 +46,8 @@ public class ExecutionTrainer {
             CalciteContext ctx,
             List<CutCandidate> candidates,
             ExecutionSession session,
-            QTable qTable,
-            boolean persistQTable
+            CutPolicyEngine policyEngine,
+            boolean persistModel
     ) throws Exception {
 
         int episodes =
@@ -63,16 +65,21 @@ public class ExecutionTrainer {
                         .toList();
 
         System.out.println(
-                "\n===== EXECUTION-BASED RL TRAINING ====="
+                "\n===== EXECUTION-BASED TRAINING ====="
         );
 
         System.out.println(
-                "Mode     = "
+                "Mode       = "
                         + ResearchSettings.trainingMode()
         );
 
         System.out.println(
-                "Episodes = "
+                "Algorithm  = "
+                        + policyEngine.algorithmLabel()
+        );
+
+        System.out.println(
+                "Episodes   = "
                         + episodes
         );
 
@@ -84,12 +91,12 @@ public class ExecutionTrainer {
         );
 
         System.out.println(
-                "Session  = "
+                "Session    = "
                         + session.id()
         );
 
         System.out.println(
-                "Tip: set training.mode=inference after first train run for fast queries."
+                "Tip: set training.mode=inference after training for fast queries."
         );
         System.out.flush();
 
@@ -137,12 +144,6 @@ public class ExecutionTrainer {
                         metrics
                 );
 
-                State state =
-                        StateBuilder.from(candidate);
-
-                String key =
-                        QLearningPolicy.stateKey(state);
-
                 double reward =
                         RewardCalculator.executionReward(
                                 metrics
@@ -159,22 +160,19 @@ public class ExecutionTrainer {
                 );
                 System.out.flush();
 
-                qTable.update(
-                        key,
+                policyEngine.observe(
+                        candidate,
                         reward
                 );
             }
         }
 
-        if (persistQTable) {
-            QTableStore.save(
-                    qTable,
-                    ResearchSettings.qTablePath()
-            );
+        if (persistModel) {
+            policyEngine.save();
         }
 
         return new TrainingResult(
-                qTable,
+                policyEngine,
                 metricsByCutNodeId
         );
     }

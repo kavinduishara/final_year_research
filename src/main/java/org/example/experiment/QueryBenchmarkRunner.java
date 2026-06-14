@@ -15,8 +15,9 @@ import org.example.plan.FragmentLocalityAnalyzer;
 import org.example.plan.PlanStatisticsCollector;
 import org.example.rl.Action;
 import org.example.rl.BaselinePolicyFactory;
+import org.example.rl.CutPolicyEngine;
+import org.example.rl.CutSelection;
 import org.example.rl.ExecutionTrainer;
-import org.example.rl.QLearningPolicy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,6 +72,14 @@ public class QueryBenchmarkRunner {
         );
 
         System.out.flush();
+
+        CutPolicyEngine sharedPolicy =
+                CutPolicyEngine.createFresh();
+
+        System.out.println(
+                "Learned policy     = "
+                        + sharedPolicy.algorithmLabel()
+        );
 
         for (int i = 0; i < queries.size(); i++) {
 
@@ -161,16 +170,19 @@ public class QueryBenchmarkRunner {
                             plan,
                             ctx,
                             candidates,
-                            session
+                            session,
+                            sharedPolicy,
+                            false
                     );
 
-            QLearningPolicy policy =
-                    new QLearningPolicy(
-                            training.qTable()
+            CutSelection learnedSelection =
+                    sharedPolicy.choose(
+                            candidates,
+                            training.metricsByCutNodeId()
                     );
 
             Action rlAction =
-                    policy.choose(candidates);
+                    learnedSelection.action();
 
             Action baselineAction =
                     BaselinePolicyFactory.choose(
@@ -224,9 +236,12 @@ public class QueryBenchmarkRunner {
                     rl,
                     candidates,
                     baselineAction,
-                    rlAction
+                    rlAction,
+                    learnedSelection.reason()
             );
         }
+
+        sharedPolicy.save();
 
         printSummaryTable(rows);
 
@@ -239,7 +254,8 @@ public class QueryBenchmarkRunner {
             BenchmarkResult rl,
             List<CutCandidate> candidates,
             Action baselineAction,
-            Action rlAction
+            Action rlAction,
+            CutSelection.SelectionReason learnedReason
     ) {
         System.out.println(
                 "\n----- Query "
@@ -271,6 +287,11 @@ public class QueryBenchmarkRunner {
                         row.improvementPercent()
                 )
                         + "%"
+        );
+
+        System.out.println(
+                "Learned reason    = "
+                        + learnedReason
         );
 
         if (row.sameCut()) {
