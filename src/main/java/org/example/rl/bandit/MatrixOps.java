@@ -1,10 +1,23 @@
 package org.example.rl.bandit;
 
+/**
+ * Small dense-matrix helpers for LinUCB (no external linear algebra dependency).
+ *
+ * <p>Supports the operations in {@link ContextualBandit}:
+ * A⁻¹b (parameter estimate), xᵀA⁻¹x (uncertainty), and A += xxᵀ (update).
+ */
 final class MatrixOps {
 
     private MatrixOps() {
     }
 
+    /**
+     * Matrix–vector product: result[i] = Σⱼ matrix[i][j] × vector[j].
+     *
+     * @param matrix d×d matrix (e.g. A⁻¹)
+     * @param vector length d (e.g. b or x)
+     * @return product vector, length d
+     */
     static double[] multiply(
             double[][] matrix,
             double[] vector
@@ -23,6 +36,11 @@ final class MatrixOps {
         return result;
     }
 
+    /**
+     * Dot product of two equal-length vectors.
+     *
+     * @return Σᵢ left[i] × right[i], e.g. xᵀ(A⁻¹x) for uncertainty
+     */
     static double dot(
             double[] left,
             double[] right
@@ -34,6 +52,12 @@ final class MatrixOps {
         return sum;
     }
 
+    /**
+     * Rank-one update: matrix += vector × vectorᵀ (LinUCB A update).
+     *
+     * @param matrix d×d matrix modified in place
+     * @param vector feature vector x from {@link CutFeatures}
+     */
     static void addOuterProduct(
             double[][] matrix,
             double[] vector
@@ -46,6 +70,10 @@ final class MatrixOps {
         }
     }
 
+    /**
+     * @param source square matrix
+     * @return deep copy
+     */
     static double[][] copy(double[][] source) {
         double[][] copy =
                 new double[source.length][source.length];
@@ -63,6 +91,12 @@ final class MatrixOps {
         return copy;
     }
 
+    /**
+     * Gauss–Jordan inversion of a square matrix.
+     *
+     * @param matrix d×d matrix (e.g. A with ridge regularization)
+     * @return inverse matrix A⁻¹
+     */
     static double[][] invert(double[][] matrix) {
         int n = matrix.length;
         double[][] augmented = new double[n][2 * n];

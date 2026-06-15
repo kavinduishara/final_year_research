@@ -4,8 +4,30 @@ import org.example.exec.ExecutionMetrics;
 import org.example.plan.CutCandidate;
 import org.example.sql.FragmentSql;
 
+/**
+ * Runs a distributed query for one chosen cut: ship tables → fragment1 → transfer → fragment2.
+ *
+ * <p>Example flow for Q1, cut 42, inter table "inter_single_n42":
+ * <pre>
+ *   1. Drop inter_single_n42 on worker1/worker2
+ *   2. Ship customer+orders to worker2 (lineitem already there)
+ *   3. worker2: DROP + CREATE TABLE inter_single_n42 AS (fragment1 SQL)
+ *   4. Transfer inter_single_n42 worker2 → worker1 (if different workers)
+ *   5. worker1: SELECT ... FROM inter_single_n42 JOIN ... (fragment2)
+ *   6. Return rows + ExecutionMetrics
+ * </pre>
+ */
 public class DistributedExecutor {
 
+    /**
+     * Execute fragment SQL on workers and collect final results.
+     *
+     * @param sql          DROP/CREATE/sql2 from FragmentSqlBuilder
+     * @param cut          chosen CutCandidate (workers, table sets)
+     * @param distribution table → home worker map
+     * @return metrics + column names + result rows from fragment2
+     * @throws Exception on JDBC or transfer failure
+     */
     public DistributedExecutionResult execute(
             FragmentSql sql,
             CutCandidate cut,
@@ -136,6 +158,7 @@ public class DistributedExecutor {
         );
     }
 
+    /** Prints timing breakdown; reward input = -(runtime + transfer). */
     private static void printMetrics(
             ExecutionMetrics metrics
     ) {

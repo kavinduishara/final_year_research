@@ -6,8 +6,30 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import java.util.Set;
 
+/**
+ * Debug utility: prints where each output column of a RelNode originates.
+ *
+ * <p>Helpful when building {@link org.example.sql.DynamicProjectionBuilder}
+ * for Q1 fragment1 CTAS — shows that {@code mktsegment} comes from
+ * customer and {@code totalprice} from orders.
+ *
+ * <p>Example output for Join#38:
+ * <pre>
+ *   COLUMN: custkey
+ *   [PUBLIC, CUSTOMER] columnIndex=0
+ *   COLUMN: mktsegment
+ *   [PUBLIC, CUSTOMER] columnIndex=6
+ *   COLUMN: totalprice
+ *   [PUBLIC, ORDERS] columnIndex=3
+ * </pre>
+ */
 public class ColumnOriginPrinter {
 
+    /**
+     * Prints column name and base-table origin for every output field.
+     *
+     * @param node RelNode to inspect, e.g. Q1 cut subtree at Join#38 or Join#42
+     */
     public static void print(RelNode node) {
 
         RelMetadataQuery mq =

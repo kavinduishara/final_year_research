@@ -1,7 +1,25 @@
 package org.example.sql;
 
+/**
+ * Post-processes generated SQL to replace wildcard projections with explicit columns.
+ *
+ * <p>Research/debug helper for Q1-style joins where {@code SELECT *} from an
+ * intermediate table breaks column disambiguation in PostgreSQL.
+ *
+ * <p>Example input (fragment2 over {@code inter_single_n42}):
+ * <pre>
+ *   SELECT * FROM "inter_single_n42" …
+ * </pre>
+ * Output expands {@code SELECT *} to named customer/orders columns (see implementation).
+ */
 public class IntermediateSqlFixer {
 
+    /**
+     * Replaces the first {@code SELECT *} occurrence with an explicit column list.
+     *
+     * @param sql generated fragment SQL, possibly containing SELECT *
+     * @return SQL with expanded projection for customer+orders columns
+     */
     public static String fix(String sql) {
 
         return sql.replace(

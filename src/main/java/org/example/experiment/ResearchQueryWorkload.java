@@ -2,8 +2,30 @@ package org.example.experiment;
 
 import java.util.List;
 
+/**
+ * TPC-H-inspired research query workload (10 queries, all customer⋈orders⋈lineitem).
+ *
+ * <p>Q1 is the canonical teaching example:
+ * <pre>
+ *   SELECT c.mktsegment, SUM(o.totalprice)
+ *   FROM customer c
+ *   JOIN orders o ON c.custkey = o.custkey
+ *   JOIN lineitem l ON o.orderkey = l.orderkey
+ *   WHERE l.shipdate > DATE '1999-05-01'
+ *   GROUP BY c.mktsegment
+ * </pre>
+ *
+ * <p>With worker1={customer,orders} and worker2={lineitem}, each query yields
+ * cut candidates at JOIN nodes (typically ids 38 and 42 in the logical plan).
+ */
 public final class ResearchQueryWorkload {
 
+    /**
+     * One named SQL query in the benchmark suite.
+     *
+     * @param name short label, e.g. "Q1_mktsegment_revenue"
+     * @param sql  full SQL text (may include trailing semicolon; normalized later)
+     */
     public record ResearchQuery(
             String name,
             String sql
@@ -13,6 +35,9 @@ public final class ResearchQueryWorkload {
     private ResearchQueryWorkload() {
     }
 
+    /**
+     * @return all 10 research queries [Q1 … Q10]
+     */
     public static List<ResearchQuery> all() {
         return List.of(
                 q1(),
@@ -28,6 +53,7 @@ public final class ResearchQueryWorkload {
         );
     }
 
+    /** @return Q1 SQL (default query for demos and Main). */
     public static String defaultSql() {
         return q1().sql();
     }

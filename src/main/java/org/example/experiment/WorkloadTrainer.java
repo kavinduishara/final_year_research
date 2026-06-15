@@ -17,8 +17,29 @@ import org.example.rl.ExecutionTrainer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Multi-query training loop: updates one shared LinUCB model across Q1–Q10.
+ *
+ * <p>Unlike {@link QueryBenchmarkRunner}, does not compare to baseline — only
+ * trains the bandit by executing every executable cut per query.
+ *
+ * <p>Q1 training flow:
+ * <pre>
+ *   plan Q1 → cuts [38, 42] → enrich(worker1, worker2)
+ *   → ExecutionTrainer.train(session=q1, episodes=N)
+ *   → model observes rewards for inter_q1_n38 and inter_q1_n42
+ * </pre>
+ */
 public final class WorkloadTrainer {
 
+    /**
+     * Summary row after training one query.
+     *
+     * @param queryNumber      1-based index
+     * @param queryName        e.g. Q1_mktsegment_revenue
+     * @param executableCuts   count of runnable cuts for that query
+     * @param modelSizeAfter   bandit observation count after this query
+     */
     public record WorkloadTrainRow(
             int queryNumber,
             String queryName,
@@ -30,6 +51,13 @@ public final class WorkloadTrainer {
     private WorkloadTrainer() {
     }
 
+    /**
+     * Trains LinUCB on all workload queries sequentially; saves model at end.
+     *
+     * @param ctx Calcite planning context
+     * @return training summary rows (skipped queries omitted)
+     * @throws Exception on failure
+     */
     public static List<WorkloadTrainRow> run(
             CalciteContext ctx
     ) throws Exception {
@@ -114,11 +142,21 @@ public final class WorkloadTrainer {
                             query.sql(),
                             ctx
                     );
+                //     Calcite builds a logical plan tree, roughly:
+
+                // LogicalAggregate (GROUP BY mktsegment)
+                // └── LogicalJoin  ← CUT #2 (orders ⋈ lineitem)
+                //         ├── LogicalJoin  ← CUT #1 (customer ⋈ orders)
+                //         │     ├── Scan: customer
+                //         │     └── Scan: orders
+                //         └── Scan: lineitem
 
             List<RelNode> cutPoints =
                     CutPointCollector.collectJoinCuts(
                             plan
                     );
+//     Find legal cut points,Rule: only LogicalJoin nodes can be cut.
+
 
             if (cutPoints.isEmpty()) {
                 System.out.println(

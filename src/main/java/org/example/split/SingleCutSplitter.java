@@ -9,8 +9,30 @@ import org.example.rl.Action;
 
 import java.util.List;
 
+/**
+ * Splits a query plan at one JOIN into two fragments + intermediate table name.
+ *
+ * <p>Example Q1, Action(42) at orders⋈lineitem join:
+ * <pre>
+ *   fragment1 = subtree below join 42 (customer+orders+lineitem joined up to that point)
+ *   fragment2 = original plan with join 42 replaced by SCAN inter_single_n42
+ *   placeholder = "inter_single_n42"
+ * </pre>
+ * Fragment1 becomes CREATE TABLE AS; fragment2 becomes the final SELECT.
+ */
 public class SingleCutSplitter {
 
+    /**
+     * Split plan at the JOIN identified by action.cutNodeId().
+     *
+     * @param bestPlan   full Q1 RelNode from BestPlanFinder
+     * @param action     e.g. Action(42)
+     * @param schema     Calcite root schema (registers IntermediateTable placeholder)
+     * @param relBuilder used to build fragment1 projection and scan replacement
+     * @param session    names intermediate table, e.g. "inter_single_n42"
+     * @return SplitResult(fragment1, fragment2, "inter_single_n42")
+     * @throws IllegalArgumentException if cutNodeId not found in plan tree
+     */
     public SplitResult split(
             RelNode bestPlan,
             Action action,
@@ -92,6 +114,7 @@ public class SingleCutSplitter {
         );
     }
 
+    /** DFS search for RelNode with matching Calcite id. @return node or null */
     private RelNode findById(
             RelNode root,
             int id
@@ -117,3 +140,4 @@ public class SingleCutSplitter {
         return null;
     }
 }
+

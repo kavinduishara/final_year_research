@@ -8,11 +8,31 @@ import org.example.rl.CutSelection;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * LinUCB-based cut selector: scores each executable arm by UCB upper bound.
+ *
+ * <p>Before enough observations, falls back to cheapest-transfer cut (like static QoS).
+ * After training on Q1 cuts 38 and 42, prefers the arm with highest
+ * {@code mean_reward + α × uncertainty}.
+ *
+ * <p>Example:
+ * <pre>
+ *   observations &lt; min → Action(38) via FALLBACK_CHEAPEST_TRANSFER
+ *   observations ≥ min → Action(38) via LINUCB if shallow cut scored higher
+ * </pre>
+ */
 public final class BanditCutSelector {
 
     private BanditCutSelector() {
     }
 
+    /**
+     * Picks the best cut using the contextual bandit model.
+     *
+     * @param candidates enriched Q1 cuts [38, 42]
+     * @param bandit     trained LinUCB model
+     * @return {@link CutSelection} with reason LINUCB or FALLBACK_CHEAPEST_TRANSFER
+     */
     public static CutSelection choose(
             List<CutCandidate> candidates,
             ContextualBandit bandit
@@ -64,6 +84,12 @@ public final class BanditCutSelector {
         );
     }
 
+    /**
+     * Cold-start policy: minimum total transfer (matches static QoS intent).
+     *
+     * @param executable runnable cuts only
+     * @return cheapest-transfer selection with score 0
+     */
     private static CutSelection fallbackCheapest(
             List<CutCandidate> executable
     ) {

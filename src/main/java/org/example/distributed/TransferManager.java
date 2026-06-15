@@ -7,11 +7,33 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 
+/**
+ * Copies a PostgreSQL table row-by-row from one worker to another.
+ *
+ * <p>Used when Q1 requires shipping a base table (e.g. lineitem from worker2
+ * to worker1 for a shallow cut) or replicating an intermediate result.
+ *
+ * <p>Example:
+ * <pre>
+ *   transfer(worker2, worker1, "lineitem")
+ *   → SELECT * FROM "lineitem" on worker2
+ *   → CREATE + INSERT batches on worker1
+ *   → returns elapsed ms (e.g. 45000 ms for 6M rows)
+ * </pre>
+ */
 public class TransferManager {
 
     private static final int BATCH_SIZE = 10_000;
     private static final int PROGRESS_EVERY = 100_000;
 
+    /**
+     * Full table copy: drop/create on target, batched insert from source.
+     *
+     * @param source    home worker, e.g. worker2 for lineitem
+     * @param target    worker that needs a local copy, e.g. worker1
+     * @param tableName base or intermediate table name
+     * @return total transfer time in milliseconds
+     */
     public long transfer(
             WorkerNode source,
             WorkerNode target,
@@ -141,6 +163,12 @@ public class TransferManager {
         }
     }
 
+    /**
+     * @param tableName destination table
+     * @param md        source result metadata
+     * @param cols      column count
+     * @return CREATE TABLE DDL matching source column types
+     */
     private static String buildCreateSql(
             String tableName,
             ResultSetMetaData md,
@@ -171,6 +199,11 @@ public class TransferManager {
         return create.toString();
     }
 
+    /**
+     * @param tableName destination table
+     * @param cols      number of columns
+     * @return parameterized INSERT statement with {@code ?} placeholders
+     */
     private static String buildInsertSql(
             String tableName,
             int cols

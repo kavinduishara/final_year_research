@@ -4,12 +4,32 @@ import org.example.sql.FragmentSql;
 
 import java.sql.*;
 
+/**
+ * Single-node PostgreSQL executor for debugging fragment SQL locally.
+ *
+ * <p>Unlike {@link org.example.distributed.DistributedExecutor}, runs both
+ * sql1 (CTAS) and sql2 (final query) on one JDBC connection — useful for
+ * validating Q1 fragment generation without worker1/worker2.
+ *
+ * <p>Example:
+ * <pre>
+ *   execute(fragmentSql for cut@42)
+ *   → sql1: CREATE TABLE "inter_single_n42" AS SELECT …
+ *   → sql2: SELECT mktsegment, SUM(totalprice) FROM "inter_single_n42" …
+ *   → returns ExecutionMetrics(runtimeMs=…, transfer=0)
+ * </pre>
+ */
 public class PostgresExecutor {
 
     private final String jdbcUrl;
     private final String user;
     private final String pass;
 
+    /**
+     * @param jdbcUrl PostgreSQL URL, e.g. jdbc:postgresql://localhost:5433/tpch_worker1
+     * @param user    database user
+     * @param pass    database password
+     */
     public PostgresExecutor(String jdbcUrl,
                             String user,
                             String pass) {
@@ -18,6 +38,13 @@ public class PostgresExecutor {
         this.pass = pass;
     }
 
+    /**
+     * Runs sql1 then sql2 sequentially; prints first 10 result rows.
+     *
+     * @param sql fragment pair from {@link org.example.sql.FragmentSqlBuilder}
+     * @return timing metrics (transfer fields zero — single-node run)
+     * @throws SQLException on JDBC failure
+     */
     public ExecutionMetrics execute(FragmentSql sql)
             throws SQLException {
 
@@ -79,6 +106,10 @@ public class PostgresExecutor {
         );
     }
 
+    /**
+     * @param rs    open result set from sql2
+     * @param limit max rows to print
+     */
     private void printFirstRows(ResultSet rs,
                                 int limit)
             throws SQLException {

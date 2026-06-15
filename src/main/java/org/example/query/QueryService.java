@@ -23,14 +23,31 @@ import org.example.rl.Action;
 import org.example.rl.BaselinePolicyFactory;
 import org.example.rl.CutSelection;
 import org.example.rl.CutPolicyEngine;
-import org.example.rl.CutSelection;
 import org.example.rl.ExecutionTrainer;
 
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Core orchestrator: plan SQL → find cuts → train or infer → execute distributed query.
+ *
+ * <p>Example (Q1, training.mode=train):
+ * <pre>
+ *   run(ctx, Q1_sql, verbose=true)
+ *   → prepare() finds cuts [38, 42]
+ *   → runTrain() executes each cut, updates bandit, compares vs weighted-ship baseline
+ *   → returns QueryResult(chosenCut=42, rows=[], metrics=ExecutionMetrics(...))
+ * </pre>
+ */
 public final class QueryService {
 
+    /**
+     * Output of the planning phase (before train/inference).
+     *
+     * @param bestPlan   Calcite RelNode root for the SQL
+     * @param cutPoints  raw JOIN RelNodes (e.g. [Join#38, Join#42])
+     * @param candidates enriched CutCandidates with worker/transfer info
+     */
     public record PreparedQuery(
             RelNode bestPlan,
             List<RelNode> cutPoints,
@@ -41,6 +58,14 @@ public final class QueryService {
     private QueryService() {
     }
 
+    /**
+     * Main entry for single-query modes (train or inference).
+     *
+     * @param ctx     Calcite context from factory
+     * @param sql     e.g. Q1: "SELECT c.mktsegment, SUM(o.totalprice) FROM customer c JOIN ..."
+     * @param verbose print plan, cuts, and candidate details
+     * @return QueryResult with chosen cut, metrics, and rows (rows only in inference)
+     */
     public static QueryResult run(
             CalciteContext ctx,
             String sql,
@@ -79,6 +104,12 @@ public final class QueryService {
         );
     }
 
+    /**
+     * Planning only: SQL → RelNode → cut points → enriched candidates.
+     * Used by QueryService, QueryBenchmarkRunner, WorkloadTrainer.
+     *
+     * @return PreparedQuery ready for training or cut selection
+     */
     public static PreparedQuery prepare(
             CalciteContext ctx,
             String sql,
@@ -157,6 +188,9 @@ public final class QueryService {
         );
     }
 
+    /**
+     * Inference: load bandit.json → pick best cut → execute once → return full rows.
+     */
     private static QueryResult runInference(
             CalciteContext ctx,
             String sql,
@@ -205,6 +239,10 @@ public final class QueryService {
         return result;
     }
 
+    /**
+     * Train: execute every executable cut (cheap first), update bandit, compare vs baseline.
+     * Does not re-run final query — uses cached metrics from training executions.
+     */
     private static QueryResult runTrain(
             CalciteContext ctx,
             String sql,
@@ -295,6 +333,7 @@ public final class QueryService {
         return result;
     }
 
+    /** Builds QueryResult from distributed execution output. */
     private static QueryResult toQueryResult(
             String sql,
             CutSelection selection,
@@ -311,6 +350,7 @@ public final class QueryService {
         );
     }
 
+    /** Prints chosen cut node, reason, locality, and score. */
     private static void printSelection(
             CutSelection selection
     ) {
@@ -344,6 +384,7 @@ public final class QueryService {
         }
     }
 
+    /** Debug: print all cut candidates with transfer and baseline estimates. */
     private static void printCandidates(
             List<CutCandidate> candidates
     ) {
@@ -367,6 +408,7 @@ public final class QueryService {
         }
     }
 
+    /** Compare baseline vs LinUCB total time after training. */
     private static void printPolicyComparison(
             BenchmarkResult baseline,
             BenchmarkResult learned

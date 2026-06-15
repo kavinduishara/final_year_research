@@ -1,10 +1,22 @@
 package org.example.config;
 
+/**
+ * Typed accessors for research settings in application.properties.
+ *
+ * <p>Example current config:
+ * <pre>
+ *   training.mode=benchmark          → isBenchmarkMode() = true
+ *   learning.bandit.path=bandit.json → banditPath()
+ *   worker1.tables=customer,orders   → (read by WorkerRegistry)
+ *   benchmark.baseline=weighted-ship → baselineMode()
+ * </pre>
+ */
 public class ResearchSettings {
 
     private static final AppConfig CONFIG =
             new AppConfig("/application.properties");
 
+    /** @return true if shipping.enabled (default true) — allows copying base tables to workers */
     public static boolean shippingEnabled() {
         return getBoolean(
                 "shipping.enabled",
@@ -12,6 +24,7 @@ public class ResearchSettings {
         );
     }
 
+    /** @return true if shipping.skip.if.present — skip COPY when table already on target worker */
     public static boolean skipShipIfPresent() {
         return getBoolean(
                 "shipping.skip.if.present",
@@ -19,6 +32,7 @@ public class ResearchSettings {
         );
     }
 
+    /** @return true if research.cleanup.between.queries — reset DB state before each query */
     public static boolean cleanupBetweenQueries() {
         return getBoolean(
                 "research.cleanup.between.queries",
@@ -26,6 +40,7 @@ public class ResearchSettings {
         );
     }
 
+    /** @return true if research.cleanup.after.execution — drop inter_* tables after each run */
     public static boolean cleanupAfterExecution() {
         return getBoolean(
                 "research.cleanup.after.execution",
@@ -33,6 +48,10 @@ public class ResearchSettings {
         );
     }
 
+    /**
+     * @return number of training episodes per query (e.g. 5)
+     * Each episode executes every executable cut once.
+     */
     public static int trainingEpisodes() {
         return getInt(
                 "training.episodes",
@@ -40,24 +59,28 @@ public class ResearchSettings {
         );
     }
 
+    /** @return true when training.mode=inference — load bandit.json, run chosen cut once */
     public static boolean isInferenceMode() {
         return "inference".equalsIgnoreCase(
                 trainingMode()
         );
     }
 
+    /** @return true when training.mode=benchmark — run 10-query comparison table */
     public static boolean isBenchmarkMode() {
         return "benchmark".equalsIgnoreCase(
                 trainingMode()
         );
     }
 
+    /** @return true when training.mode=workload-train — train one bandit on all 10 queries */
     public static boolean isWorkloadTrainMode() {
         String mode = trainingMode();
         return "workload-train".equalsIgnoreCase(mode)
                 || "workload_train".equalsIgnoreCase(mode);
     }
 
+    /** @return true if training.bandit.resume — continue updating existing bandit.json */
     public static boolean resumeBanditModel() {
         return getBoolean(
                 "training.bandit.resume",
@@ -65,6 +88,10 @@ public class ResearchSettings {
         );
     }
 
+    /**
+     * @return training mode string: train | inference | benchmark | workload-train
+     * Default "train" if property missing.
+     */
     public static String trainingMode() {
         try {
             return CONFIG.get("training.mode")
@@ -76,6 +103,7 @@ public class ResearchSettings {
         }
     }
 
+    /** @return path to saved LinUCB model, e.g. "bandit.json" */
     public static String banditPath() {
         try {
             return CONFIG.get("learning.bandit.path")
@@ -86,6 +114,7 @@ public class ResearchSettings {
         }
     }
 
+    /** @return LinUCB exploration parameter alpha (e.g. 0.5) */
     public static double banditAlpha() {
         return getDouble(
                 "learning.bandit.alpha",
@@ -93,6 +122,7 @@ public class ResearchSettings {
         );
     }
 
+    /** @return ridge regularization for bandit (e.g. 1.0) */
     public static double banditRidge() {
         return getDouble(
                 "learning.bandit.ridge",
@@ -100,6 +130,7 @@ public class ResearchSettings {
         );
     }
 
+    /** @return min observations before bandit trusts its model (e.g. 1) */
     public static int banditMinObservations() {
         return getInt(
                 "learning.bandit.min.observations",
@@ -107,14 +138,17 @@ public class ResearchSettings {
         );
     }
 
+    /**
+     * @return true in train/benchmark modes — after training, pick cut with best observed runtime
+     * false in inference — always use bandit model scores
+     */
     public static boolean useExecutionBestAfterTraining() {
         return !isInferenceMode();
     }
 
     /**
-     * static-qos = min estimated transfer (default, realistic traditional baseline)
-     * combined-estimate = calcite cost + weighted transfer
-     * deep-join = deepest join cut (weak ablation baseline)
+     * Baseline policy for benchmark comparison.
+     * @return e.g. "weighted-ship", "static-qos", "pessimistic-qos", "calcite-cost"
      */
     public static String baselineMode() {
         try {
@@ -127,6 +161,7 @@ public class ResearchSettings {
         }
     }
 
+    /** @return weight for transfer in combined-estimate baseline (default 1.0) */
     public static double baselineTransferWeight() {
         try {
             return Double.parseDouble(
@@ -140,6 +175,7 @@ public class ResearchSettings {
         }
     }
 
+    /** @return ship cost multiplier for weighted-ship baseline (default 0.02) */
     public static double baselineShipWeight() {
         try {
             return Double.parseDouble(
@@ -153,6 +189,7 @@ public class ResearchSettings {
         }
     }
 
+    /** @return row inflation factor for pessimistic-qos baseline (default 4.5) */
     public static double baselinePessimismFactor() {
         try {
             return Double.parseDouble(

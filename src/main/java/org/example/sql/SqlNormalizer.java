@@ -1,12 +1,28 @@
 package org.example.sql;
 
+/**
+ * Normalizes user SQL before handing it to Calcite.
+ *
+ * <p>Calcite's parser accepts a single statement without a trailing semicolon.
+ * Research workloads (Q1–Q10) often include trailing {@code ;} from editors.
+ *
+ * <p>Example:
+ * <pre>
+ *   input  = "SELECT c.mktsegment … GROUP BY c.mktsegment;\n"
+ *   output = "SELECT c.mktsegment … GROUP BY c.mktsegment"
+ * </pre>
+ */
 public final class SqlNormalizer {
 
     private SqlNormalizer() {
     }
 
     /**
-     * Prepares SQL for Calcite, which accepts a single statement without a trailing semicolon.
+     * Strips leading/trailing whitespace and removes trailing semicolons.
+     *
+     * @param sql raw query text, e.g. Q1 with optional {@code ;}
+     * @return Calcite-safe single statement
+     * @throws IllegalArgumentException if sql is null
      */
     public static String forCalcite(String sql) {
 

@@ -14,13 +14,28 @@ import java.util.Set;
 
 /**
  * Resets workers to the configured data placement for fair research runs.
- * Drops shipped base-table copies and leftover intermediate tables.
+ *
+ * <p>Between Q1 benchmark queries, removes:
+ * <ul>
+ *   <li>Shipped base-table copies (e.g. lineitem copied worker2→worker1)</li>
+ *   <li>Leftover intermediate tables matching {@code inter_%}</li>
+ * </ul>
+ *
+ * <p>Example after Q1 cut@42:
+ * <pre>
+ *   cleanupAfterExecution(cut, "inter_q1_n42")
+ *   → DROP "inter_q1_n42" on worker1 and worker2
+ *   → DROP shipped "lineitem" from worker1 (home=worker2)
+ * </pre>
  */
 public final class ResearchEnvironmentCleaner {
 
     private ResearchEnvironmentCleaner() {
     }
 
+    /**
+     * Runs {@link #cleanupAll()} when {@code research.cleanup-between-queries=true}.
+     */
     public static void cleanupBetweenQueries() {
 
         if (!ResearchSettings.cleanupBetweenQueries()) {
@@ -30,6 +45,9 @@ public final class ResearchEnvironmentCleaner {
         cleanupAll();
     }
 
+    /**
+     * Full reset on every worker: drop shipped tables and all {@code inter_*} tables.
+     */
     public static void cleanupAll() {
 
         TableDistribution distribution =
@@ -53,6 +71,12 @@ public final class ResearchEnvironmentCleaner {
         }
     }
 
+    /**
+     * Post-run cleanup for one Q1 execution (intermediate + shipped base tables).
+     *
+     * @param cut                   chosen cut, e.g. node 42 on worker1/worker2
+     * @param intermediateTableName e.g. "inter_single_n42"
+     */
     public static void cleanupAfterExecution(
             CutCandidate cut,
             String intermediateTableName

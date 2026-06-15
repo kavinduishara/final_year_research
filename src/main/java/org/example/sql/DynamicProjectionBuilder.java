@@ -6,8 +6,31 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import java.util.Set;
 
+/**
+ * Builds an explicit column projection for fragment1 CTAS statements.
+ *
+ * <p>Calcite's {@code RelToSqlConverter} may emit {@code SELECT *} for join
+ * outputs; PostgreSQL CTAS needs named columns for downstream fragment2 SQL.
+ *
+ * <p>Example Q1 cut@42 — output of fragment1 join:
+ * <pre>
+ *   SELECT
+ *       customer.custkey AS custkey,
+ *       orders.orderkey AS orderkey,
+ *       customer.mktsegment AS mktsegment,
+ *       orders.totalprice AS totalprice,
+ *       …
+ *   FROM customer …
+ * </pre>
+ */
 public class DynamicProjectionBuilder {
 
+    /**
+     * Walks output columns of a RelNode and maps each to its base-table origin.
+     *
+     * @param node cut subtree root (fragment1), e.g. Join#42 output
+     * @return SELECT list SQL (without FROM clause), one column per output field
+     */
     public static String build(RelNode node) {
 
         RelMetadataQuery mq =

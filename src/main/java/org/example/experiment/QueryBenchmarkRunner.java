@@ -22,8 +22,36 @@ import org.example.rl.ExecutionTrainer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * End-to-end 10-query benchmark: train LinUCB per query, compare to static baseline.
+ *
+ * <p>For each query in {@link ResearchQueryWorkload} (Q1–Q10):
+ * <ol>
+ *   <li>Plan + collect cuts (e.g. Join#38, Join#42)</li>
+ *   <li>Enrich with worker1/worker2 locality</li>
+ *   <li>Train {@link org.example.rl.ExecutionTrainer} (execute every cut)</li>
+ *   <li>Compare baseline vs learned cut timings</li>
+ * </ol>
+ *
+ * <p>Q1 example output row:
+ * <pre>
+ *   baselineCut=42, learnedCut=38, baselineTotalMs=3200, learnedTotalMs=2100, improvement=34%
+ * </pre>
+ */
 public class QueryBenchmarkRunner {
 
+    /**
+     * One row in the final summary table.
+     *
+     * @param queryNumber         1–10
+     * @param queryName           e.g. "Q1_mktsegment_revenue"
+     * @param baselineCutNode     cut chosen by static baseline, e.g. 42
+     * @param learnedCutNode      cut chosen by LinUCB, e.g. 38
+     * @param baselineTotalMs     measured total time for baseline cut
+     * @param learnedTotalMs      measured total time for learned cut
+     * @param improvementPercent  (baseline − learned) / baseline × 100
+     * @param sameCut             true when both policies picked the same node id
+     */
     public record QueryBenchmarkRow(
             int queryNumber,
             String queryName,
@@ -36,6 +64,13 @@ public class QueryBenchmarkRunner {
     ) {
     }
 
+    /**
+     * Runs the full 10-query benchmark with a shared LinUCB model across queries.
+     *
+     * @param ctx Calcite context with TPC-H schema
+     * @return one {@link QueryBenchmarkRow} per successfully benchmarked query
+     * @throws Exception on planning or execution failure
+     */
     public static List<QueryBenchmarkRow> run(
             CalciteContext ctx
     ) throws Exception {
