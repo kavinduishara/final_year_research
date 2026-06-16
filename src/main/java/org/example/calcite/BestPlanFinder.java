@@ -45,5 +45,12 @@ public class BestPlanFinder {
         RelRoot root = planner.rel(validated);
 
         return root.rel; // logical best plan
+
+//  ex:        LogicalAggregate (GROUP BY mktsegment)
+            //   └── LogicalJoin                    ← cut candidate
+            //         └── LogicalJoin              ← cut candidate
+            //         ├      ├── TableScan: customer
+            //         ├      ├── TableScan: orders
+            //         ├──────── TableScan: lineitem
     }
 }

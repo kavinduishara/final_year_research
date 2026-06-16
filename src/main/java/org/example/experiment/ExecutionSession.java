@@ -12,6 +12,7 @@ package org.example.experiment;
  * @param id session prefix, e.g. "single" or "q1"
  */
 public record ExecutionSession(String id) {
+    // temp table naming convention: inter_single_n42, inter_q1_n42, etc.
 
     /**
      * @param queryNumber 1-based query index in {@link ResearchQueryWorkload}
