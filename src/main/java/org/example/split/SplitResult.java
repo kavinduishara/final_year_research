@@ -11,7 +11,7 @@ import org.apache.calcite.rel.RelNode;
  *   fragment2  = remainder (aggregate over intermediate scan)
  *   placeholderName = "inter_single_n42"
  * </pre>
- *
+ * 
  * @param fragment1       RelNode executed on fragment1 worker (creates intermediate table)
  * @param fragment2       RelNode executed on fragment2 worker (reads intermediate + finishes query)
  * @param placeholderName PostgreSQL temp table name, e.g. "inter_single_n42"

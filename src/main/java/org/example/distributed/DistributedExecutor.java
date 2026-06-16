@@ -15,7 +15,7 @@ import org.example.sql.FragmentSql;
  *   4. Transfer inter_single_n42 worker2 → worker1 (if different workers)
  *   5. worker1: SELECT ... FROM inter_single_n42 JOIN ... (fragment2)
  *   6. Return rows + ExecutionMetrics
- * </pre>
+ * </pre> 
  */
 public class DistributedExecutor {
 
